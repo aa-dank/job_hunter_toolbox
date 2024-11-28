@@ -140,5 +140,7 @@ output_files/
 *.json
 *.txt
 *.tex
-
+*.pdf
+*.out
+*.aux
 *creds.py

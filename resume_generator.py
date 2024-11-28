@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 from langchain_core.output_parsers import JsonOutputParser
 from langchain.prompts import PromptTemplate
 from zlm import AutoApplyModel
-from zlm.prompts.resume_prompt import RESUME_DETAILS_EXTRACTOR, JOB_DETAILS_EXTRACTOR
+from zlm.prompts.resume_prompt import RESUME_DETAILS_EXTRACTOR, JOB_DETAILS_EXTRACTOR, CV_GENERATOR, RESUME_WRITER_PERSONA
 from zlm.schemas.job_details_schema import JobDetails
 from zlm.utils.data_extraction import read_data_from_url, extract_text
 from zlm.utils.latex_ops import escape_for_latex, use_template
@@ -15,90 +15,41 @@ from zlm.utils.metrics import jaccard_similarity, overlap_coefficient, cosine_si
 from zlm.utils import utils
 from zlm.variables import section_mapping
 
-
-def save_latex_as_pdf(tex_file_path: str, dst_path: str):
-    try:
-        # Call pdflatex to convert LaTeX to PDF
-        prev_loc = os.getcwd()
-        os.chdir(os.path.dirname(tex_file_path))
-        try:
-            result = subprocess.run(
-                ["pdflatex", tex_file_path, "&>/dev/null"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-        except Exception as e:
-            print("Pdflatex failed to convert tex file to pdf.")
-            print(e)
+llm_mapping_dict = {
+    'GPT': {
+        "api_env": "OPENAI_API_KEY",
+        "model": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-4-1106-preview", "gpt-3.5-turbo"], 
+    },
+    'Gemini': {
+        "api_env": "GEMINI_API_KEY",
+        "model": ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-1.5-pro", "gemini-1.5-pro-latest", "gemini-1.5-pro-exp-0801"], # "gemini-1.0-pro", "gemini-1.0-pro-latest"
+    }
+}
 
 
-        os.chdir(prev_loc)
-        resulted_pdf_path = tex_file_path.replace(".tex", ".pdf")
-        dst_tex_path = dst_path.replace(".pdf", ".tex")
+class ResumeGenerator:
+ 
+    def __init__(
+        self, api_key: str, provider: str, model: str, downloads_dir: str = utils.get_default_download_folder(), system_prompt: str = RESUME_WRITER_PERSONA
+    ):
+        
+        default_llm_provider = "GPT"
+        default_llm_model = "gpt-4o"
+        self.system_prompt = system_prompt
+        self.provider = default_llm_provider if provider is None or provider.strip() == "" else provider
+        self.model = default_llm_model if model is None or model.strip() == "" else model
+        self.downloads_dir = utils.get_default_download_folder() if downloads_dir is None or downloads_dir.strip() == "" else downloads_dir
 
-        os.rename(resulted_pdf_path, dst_path)
-        os.rename(tex_file_path, dst_tex_path)
+        if api_key is None or api_key.strip() == "os":
+                api_env = llm_mapping_dict[self.provider]["api_env"]
+                if api_env != None and api_env.strip() != "":
+                    self.api_key = os.environ.get(llm_mapping_dict[self.provider]["api_env"]) 
+                else:
+                    self.api_key = None
+        else:
+            self.api_key = api_key
 
-        if result.returncode != 0:
-            print("Exit-code not 0, check result!")
-        try:
-            pass
-            # open_file(dst_path)
-        except Exception as e:
-            print("Unable to open the PDF file.")
-
-        filename_without_ext = os.path.basename(tex_file_path).split(".")[0]
-        unnessary_files = [
-            file
-            for file in os.listdir(os.path.dirname(os.path.realpath(tex_file_path)))
-            if file.startswith(filename_without_ext)
-        ]
-
-        for file in unnessary_files:
-            file_path = os.path.join(os.path.dirname(tex_file_path), file)
-            if os.path.exists(file_path):
-                os.remove(file_path)
-    except Exception as e:
-        print(e)
-        return None
-
-
-def latex_to_pdf(json_resume, dst_path):
-    try:
-        module_dir = os.path.dirname(__file__)
-        templates_path = os.path.join(os.path.dirname(module_dir), 'templates')
-
-        latex_jinja_env = jinja2.Environment(
-            block_start_string="\BLOCK{",
-            block_end_string="}",
-            variable_start_string="\VAR{",
-            variable_end_string="}",
-            comment_start_string="\#{",
-            comment_end_string="}",
-            line_statement_prefix="%-",
-            line_comment_prefix="%#",
-            trim_blocks=True,
-            autoescape=False,
-            loader=jinja2.FileSystemLoader(templates_path),
-        )
-
-        escaped_json_resume = escape_for_latex(json_resume)
-
-        resume_latex = use_template(latex_jinja_env, escaped_json_resume)
-
-        tex_temp_path = os.path.join(os.path.realpath(templates_path), os.path.basename(dst_path).replace(".pdf", ".tex"))
-
-        utils.write_file(tex_temp_path, resume_latex)
-        save_latex_as_pdf(tex_temp_path, dst_path)
-        return resume_latex
-    except Exception as e:
-        print(e)
-        return None
-
-class ResumeGenerator(AutoApplyModel):
-
-    def __init__(self, api_key, provider, downloads_dir, model):
-        super().__init__(api_key=api_key, provider=provider, downloads_dir=downloads_dir, model=model)
+        self.llm = self.get_llm_instance()
 
 
     def process_job_html(self, job_filepath: str):
@@ -147,19 +98,9 @@ class ResumeGenerator(AutoApplyModel):
 
         return job_details, jd_path
     
-    def resume_builder(self, job_details: dict, user_data: dict):
+    def generate_resume_json(self, job_content, user_data):
         """
-        Builds a resume based on the provided job details and user data.
-
-        Args:
-            job_details (dict): A dictionary containing the job description.
-            user_data (dict): A dictionary containing the user's resume or work information.
-
-        Returns:
-            dict: The generated resume details.
-
-        Raises:
-            FileNotFoundError: If the system prompt files are not found.
+        Generates a resume in json format using the job content and user data.
         """
         try:
             print("\nGenerating Resume Details...")
@@ -184,7 +125,7 @@ class ResumeGenerator(AutoApplyModel):
                 prompt = PromptTemplate(
                     template=section_mapping[section]["prompt"],
                     partial_variables={"format_instructions": json_parser.get_format_instructions()}
-                    ).format(section_data = json.dumps(user_data[section]), job_description = json.dumps(job_details))
+                    ).format(section_data = json.dumps(user_data[section]), job_description = json.dumps(job_content))
 
                 response = self.llm.get_response(prompt=prompt, expecting_longer_output=True, need_json_output=True)
 
@@ -197,68 +138,126 @@ class ResumeGenerator(AutoApplyModel):
                             else:
                                 resume_details[section] = response[section]
 
-            resume_details['keywords'] = ', '.join(job_details['keywords'])
+            resume_details['keywords'] = ', '.join(job_content['keywords'])
             
-            resume_path = utils.job_doc_name(job_details, self.downloads_dir, "resume")
+            resume_path = utils.job_doc_name(job_content, self.downloads_dir, "resume")
 
             utils.write_json(resume_path, resume_details)
-            resume_path = resume_path.replace(".json", ".pdf")
-            # st.write(f"resume_path: {resume_path}")
 
-            resume_latex = latex_to_pdf(resume_details, resume_path)
-            # st.write(f"resume_pdf_path: {resume_pdf_path}")
-
-            return resume_path, resume_details
-        except Exception as e:
-            print(e)
             return resume_path, resume_details
         
-    def resume_cv_pipeline(self, user_data_path: str, job_filepath: str):
+        except Exception as e:
+            print(e)
+            return None
+    
+    def resume_json_to_resume_tex(self, resume_details, tex_filename):
         """
-        Main pipeline for resume generation and analysis.
+        Turns either a json file or dictionary into a tex file using the resume template.
+        :param resume_details: The resume details in json or dictionary format.
         """
         try:
-            
-            # Extract user data
-            user_data = self.user_data_extraction(user_data_path)
 
-            # Extract job details
-            if not job_filepath:
-                raise ValueError("Please provide a job description file path.")
-            
-            if job_filepath:
-                job_details, jd_path = self.extract_job_content(job_filepath)
+            if type(resume_details) == str:
+                with open(resume_details, 'r') as file:
+                    resume_details = json.load(file)
 
-            # Build resume
-            resume_path, resume_details = self.resume_builder(job_details, user_data)
-            # resume_details = read_json("/Users/saurabh/Downloads/JobLLM_Resume_CV/Netflix/Netflix_MachineLearning_resume.json")
 
-            # Generate cover letter
-            cv_details, cv_path = self.cover_letter_generator(job_details, user_data)
+            templates_path = os.path.join(os.getcwd(), 'templates')
+            output_path = os.path.join(os.getcwd(), 'output_files')
 
-            # Calculate metrics
-            for metric in ['jaccard_similarity', 'overlap_coefficient', 'cosine_similarity']:
-                print(f"\nCalculating {metric}...")
+            latex_jinja_env = jinja2.Environment(
+                block_start_string="\BLOCK{",
+                block_end_string="}",
+                variable_start_string="\VAR{",
+                variable_end_string="}",
+                comment_start_string="\#{",
+                comment_end_string="}",
+                line_statement_prefix="%-",
+                line_comment_prefix="%#",
+                trim_blocks=True,
+                autoescape=False,
+                loader=jinja2.FileSystemLoader(templates_path),
+            )
 
-                if metric == 'vector_embedding_similarity':
-                    llm = self.get_llm_instance('')
-                    user_personlization = globals()[metric](llm, json.dumps(resume_details), json.dumps(user_data))
-                    job_alignment = globals()[metric](llm, json.dumps(resume_details), json.dumps(job_details))
-                    job_match = globals()[metric](llm, json.dumps(user_data), json.dumps(job_details))
-                else:
-                    user_personlization = globals()[metric](json.dumps(resume_details), json.dumps(user_data))
-                    job_alignment = globals()[metric](json.dumps(resume_details), json.dumps(job_details))
-                    job_match = globals()[metric](json.dumps(user_data), json.dumps(job_details))
+            escaped_resume_dict = escape_for_latex(resume_details)
 
-                print("User Personlization Score(resume,master_data): ", user_personlization)
-                print("Job Alignment Score(resume,JD): ", job_alignment)
-                print("Job Match Score(master_data,JD): ", job_match)
+            resume_latex = use_template(latex_jinja_env, escaped_resume_dict)
 
-            print("\nDone!!!")
+            tex_temp_path = os.path.join(os.path.realpath(output_path), tex_filename)
+            utils.write_file(tex_temp_path, resume_latex)
+            return resume_latex
+        
         except Exception as e:
-            # print full error and stack trace
             print(e)
-
             return None
+        
+    @staticmethod
+    def save_latex_as_pdf(tex_file_path: str, dst_path: str):
+        try:
+            # Call pdflatex to convert LaTeX to PDF
+            prev_loc = os.getcwd()
+            os.chdir(os.path.dirname(tex_file_path))
+            try:
+                result = subprocess.run(
+                    ["pdflatex", tex_file_path, "&>/dev/null"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+            except Exception as e:
+                print("Pdflatex failed to convert tex file to pdf.")
+                print(e)
+
+
+            os.chdir(prev_loc)
+            resulted_pdf_path = tex_file_path.replace(".tex", ".pdf")
+            dst_tex_path = dst_path.replace(".pdf", ".tex")
+
+            os.rename(resulted_pdf_path, dst_path)
+            os.rename(tex_file_path, dst_tex_path)
+
+            if result.returncode != 0:
+                print("Exit-code not 0, check result!")
+            try:
+                pass
+                # open_file(dst_path)
+            except Exception as e:
+                print("Unable to open the PDF file.")
+
+            filename_without_ext = os.path.basename(tex_file_path).split(".")[0]
+            unnessary_files = [
+                file
+                for file in os.listdir(os.path.dirname(os.path.realpath(tex_file_path)))
+                if file.startswith(filename_without_ext)
+            ]
+
+            for file in unnessary_files:
+                file_path = os.path.join(os.path.dirname(tex_file_path), file)
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+        except Exception as e:
+            print(e)
+            return None
+        
+        def cover_letter_generator(self, job_details: dict, user_data: dict, need_pdf: bool = True, is_st=False):
+
+            try:
+                prompt = PromptTemplate(
+                    template=CV_GENERATOR,
+                    input_variables=["my_work_information", "job_description"],
+                    ).format(job_description=job_details, my_work_information=user_data)
+
+                cover_letter = self.llm.get_response(prompt=prompt, expecting_longer_output=True)
+
+                cv_path = utils.job_doc_name(job_details, self.downloads_dir, "cv")
+                utils.write_file(cv_path, cover_letter)
+                print("Cover Letter generated at: ", cv_path)
+                if need_pdf:
+                    utils.text_to_pdf(cover_letter, cv_path.replace(".txt", ".pdf"))
+                    print("Cover Letter PDF generated at: ", cv_path.replace(".txt", ".pdf"))
+                
+                return cover_letter, cv_path.replace(".txt", ".pdf")
+            except Exception as e:
+                print(e)
+                return None, None
 
     
