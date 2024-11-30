@@ -2,18 +2,21 @@ import jinja2
 import json
 import os
 import subprocess
-
+import re
 from bs4 import BeautifulSoup
 from langchain_core.output_parsers import JsonOutputParser
 from langchain.prompts import PromptTemplate
-from zlm import AutoApplyModel
-from zlm.prompts.resume_prompt import RESUME_DETAILS_EXTRACTOR, JOB_DETAILS_EXTRACTOR, CV_GENERATOR, RESUME_WRITER_PERSONA
+from schemas.resume_schemas import Achievements, Certifications, Educations, Experiences, Projects, SkillSections
+# from zlm import AutoApplyModel
+from prompts.extraction_prompts import RESUME_DETAILS_EXTRACTOR, JOB_DETAILS_EXTRACTOR, CV_GENERATOR, RESUME_WRITER_PERSONA
+from prompts.resume_section_prompts import EXPERIENCE, SKILLS, PROJECTS, EDUCATIONS, CERTIFICATIONS, ACHIEVEMENTS
 from zlm.schemas.job_details_schema import JobDetails
+from zlm.utils.llm_models import ChatGPT, Gemini, OllamaModel
 from zlm.utils.data_extraction import read_data_from_url, extract_text
 from zlm.utils.latex_ops import escape_for_latex, use_template
 from zlm.utils.metrics import jaccard_similarity, overlap_coefficient, cosine_similarity, vector_embedding_similarity
 from zlm.utils import utils
-from zlm.variables import section_mapping
+
 
 llm_mapping_dict = {
     'GPT': {
@@ -24,6 +27,15 @@ llm_mapping_dict = {
         "api_env": "GEMINI_API_KEY",
         "model": ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-1.5-pro", "gemini-1.5-pro-latest", "gemini-1.5-pro-exp-0801"], # "gemini-1.0-pro", "gemini-1.0-pro-latest"
     }
+}
+
+section_mapping_dict = {
+    "work_experience": {"prompt":EXPERIENCE, "schema": Experiences},
+    "skill_section": {"prompt":SKILLS, "schema": SkillSections},
+    "projects": {"prompt":PROJECTS, "schema": Projects},
+    "education": {"prompt":EDUCATIONS, "schema": Educations},
+    "certifications": {"prompt":CERTIFICATIONS, "schema": Certifications},
+    "achievements": {"prompt":ACHIEVEMENTS, "schema": Achievements},
 }
 
 
@@ -51,6 +63,38 @@ class ResumeGenerator:
 
         self.llm = self.get_llm_instance()
 
+    @staticmethod
+    def get_llm_instance(self):
+        if self.provider == "GPT":
+            return ChatGPT(api_key=self.api_key, model=self.model, system_prompt=self.system_prompt)
+        elif self.provider == "Gemini":
+            return Gemini(api_key=self.api_key, model=self.model, system_prompt=self.system_prompt)
+        elif self.provider == "Ollama":
+            return OllamaModel(model=self.model, system_prompt=self.system_prompt)
+        else:
+            raise Exception("Invalid LLM Provider")
+
+    @staticmethod
+    def job_doc_name(job_details: dict, output_dir: str = "output", type: str = ""):
+        def clean_string(text: str):
+            text = text.title().replace(" ", "").strip()
+            text = re.sub(r"[^a-zA-Z0-9]+", "", text)
+            return text
+        
+        company_name = clean_string(job_details["company_name"])
+        job_title = clean_string(job_details["job_title"])[:15]
+        doc_name = "_".join([company_name, job_title])
+        doc_dir = os.path.join(output_dir, company_name)
+        os.makedirs(doc_dir, exist_ok=True)
+
+        if type == "jd":
+            return os.path.join(doc_dir, f"{doc_name}_JD.json")
+        elif type == "resume":
+            return os.path.join(doc_dir, f"{doc_name}_resume.json")
+        elif type == "cv":
+            return os.path.join(doc_dir, f"{doc_name}_cv.txt")
+        else:
+            return os.path.join(doc_dir, f"{doc_name}_")
 
     def process_job_html(self, job_filepath: str):
         with open(job_filepath, 'r') as file:
@@ -120,10 +164,10 @@ class ResumeGenerator:
             # Other Sections
             for section in ['work_experience', 'projects', 'skill_section', 'education', 'certifications', 'achievements']:
                 section_log = f"Processing Resume's {section.upper()} Section..."
-                json_parser = JsonOutputParser(pydantic_object=section_mapping[section]["schema"])
+                json_parser = JsonOutputParser(pydantic_object=section_mapping_dict[section]["schema"])
                 
                 prompt = PromptTemplate(
-                    template=section_mapping[section]["prompt"],
+                    template=section_mapping_dict[section]["prompt"],
                     partial_variables={"format_instructions": json_parser.get_format_instructions()}
                     ).format(section_data = json.dumps(user_data[section]), job_description = json.dumps(job_content))
 
@@ -144,7 +188,7 @@ class ResumeGenerator:
 
             utils.write_json(resume_path, resume_details)
 
-            return resume_path, resume_details
+            return resume_details, resume_path
         
         except Exception as e:
             print(e)
@@ -238,26 +282,26 @@ class ResumeGenerator:
             print(e)
             return None
         
-        def cover_letter_generator(self, job_details: dict, user_data: dict, need_pdf: bool = True, is_st=False):
+    def cover_letter_generator(self, job_details: dict, user_data: dict, need_pdf: bool = True, is_st=False):
 
-            try:
-                prompt = PromptTemplate(
-                    template=CV_GENERATOR,
-                    input_variables=["my_work_information", "job_description"],
-                    ).format(job_description=job_details, my_work_information=user_data)
+        try:
+            prompt = PromptTemplate(
+                template=CV_GENERATOR,
+                input_variables=["my_work_information", "job_description"],
+                ).format(job_description=job_details, my_work_information=user_data)
 
-                cover_letter = self.llm.get_response(prompt=prompt, expecting_longer_output=True)
+            cover_letter = self.llm.get_response(prompt=prompt, expecting_longer_output=True)
 
-                cv_path = utils.job_doc_name(job_details, self.downloads_dir, "cv")
-                utils.write_file(cv_path, cover_letter)
-                print("Cover Letter generated at: ", cv_path)
-                if need_pdf:
-                    utils.text_to_pdf(cover_letter, cv_path.replace(".txt", ".pdf"))
-                    print("Cover Letter PDF generated at: ", cv_path.replace(".txt", ".pdf"))
-                
-                return cover_letter, cv_path.replace(".txt", ".pdf")
-            except Exception as e:
-                print(e)
-                return None, None
+            cv_path = utils.job_doc_name(job_details, self.downloads_dir, "cv")
+            utils.write_file(cv_path, cover_letter)
+            print("Cover Letter generated at: ", cv_path)
+            if need_pdf:
+                utils.text_to_pdf(cover_letter, cv_path.replace(".txt", ".pdf"))
+                print("Cover Letter PDF generated at: ", cv_path.replace(".txt", ".pdf"))
+            
+            return cover_letter, cv_path.replace(".txt", ".pdf")
+        except Exception as e:
+            print(e)
+            return None, None
 
     
