@@ -4,15 +4,16 @@ import os
 import re
 import shutil
 import subprocess
+import validators
 
 from bs4 import BeautifulSoup
 from langchain_core.output_parsers import JsonOutputParser
 from langchain.prompts import PromptTemplate
-from generation_schemas import Achievements, Certifications, Educations, Experiences, JobDetails, Projects, SkillSections
-# from zlm import AutoApplyModel
+from models import ChatGPT, Gemini, OllamaModel
+from generation_schemas import Achievements, Certifications, Educations, Experiences, JobDetails, Projects, ResumeSchema, SkillSections
+from zlm import AutoApplyModel
 from prompts.extraction_prompts import RESUME_DETAILS_EXTRACTOR, JOB_DETAILS_EXTRACTOR, CV_GENERATOR, RESUME_WRITER_PERSONA
 from prompts.resume_section_prompts import EXPERIENCE, SKILLS, PROJECTS, EDUCATIONS, CERTIFICATIONS, ACHIEVEMENTS
-from zlm.utils.llm_models import ChatGPT, Gemini, OllamaModel
 from zlm.utils.data_extraction import extract_text
 from zlm.utils.latex_ops import escape_for_latex, use_template
 from zlm.utils.metrics import jaccard_similarity, overlap_coefficient, cosine_similarity, vector_embedding_similarity
@@ -140,6 +141,54 @@ class JobApplicationBuilder:
         print(f"Job Details JSON generated at: {jd_path}")
 
         return job_details, jd_path
+    
+    def resume_to_json(self, pdf_path):
+        """
+        Converts a resume in PDF format to JSON format.
+
+        Args:
+            pdf_path (str): The path to the PDF file.
+
+        Returns:
+            dict: The resume data in JSON format.
+        """
+        resume_text = extract_text(pdf_path)
+
+        json_parser = JsonOutputParser(pydantic_object=ResumeSchema)
+
+        prompt = PromptTemplate(
+            template=RESUME_DETAILS_EXTRACTOR,
+            input_variables=["resume_text"],
+            partial_variables={"format_instructions": json_parser.get_format_instructions()}
+            ).format(resume_text=resume_text)
+
+        resume_json = self.llm.get_response(prompt=prompt, need_json_output=True)
+        return resume_json
+
+    
+    def user_data_extraction(self, user_data_path: str):
+        """
+        Extracts user data from the given file path.
+
+        Args:
+            user_data_path (str): The path to the user data file.
+
+        Returns:
+            dict: The extracted user data in JSON format.
+        """
+        print("\nFetching user data...")
+
+
+        extension = os.path.splitext(user_data_path)[1]
+
+        if extension == ".pdf":
+            user_data = self.resume_to_json(user_data_path)
+        elif extension == ".json":
+            user_data = utils.read_json(user_data_path)
+        else:
+            raise Exception("Invalid file format. Please provide a PDF, JSON file or url.")
+        
+        return user_data
     
     def generate_resume_json(self, job_content, user_data):
         """
