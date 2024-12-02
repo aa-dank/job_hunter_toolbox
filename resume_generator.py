@@ -1,18 +1,19 @@
 import jinja2
 import json
 import os
-import subprocess
 import re
+import shutil
+import subprocess
+
 from bs4 import BeautifulSoup
 from langchain_core.output_parsers import JsonOutputParser
 from langchain.prompts import PromptTemplate
-from schemas.resume_schemas import Achievements, Certifications, Educations, Experiences, Projects, SkillSections
+from generation_schemas import Achievements, Certifications, Educations, Experiences, JobDetails, Projects, SkillSections
 # from zlm import AutoApplyModel
 from prompts.extraction_prompts import RESUME_DETAILS_EXTRACTOR, JOB_DETAILS_EXTRACTOR, CV_GENERATOR, RESUME_WRITER_PERSONA
 from prompts.resume_section_prompts import EXPERIENCE, SKILLS, PROJECTS, EDUCATIONS, CERTIFICATIONS, ACHIEVEMENTS
-from zlm.schemas.job_details_schema import JobDetails
 from zlm.utils.llm_models import ChatGPT, Gemini, OllamaModel
-from zlm.utils.data_extraction import read_data_from_url, extract_text
+from zlm.utils.data_extraction import extract_text
 from zlm.utils.latex_ops import escape_for_latex, use_template
 from zlm.utils.metrics import jaccard_similarity, overlap_coefficient, cosine_similarity, vector_embedding_similarity
 from zlm.utils import utils
@@ -39,10 +40,10 @@ section_mapping_dict = {
 }
 
 
-class ResumeGenerator:
+class JobApplicationBuilder:
  
     def __init__(
-        self, api_key: str, provider: str, model: str, downloads_dir: str = utils.get_default_download_folder(), system_prompt: str = RESUME_WRITER_PERSONA
+        self, api_key: str, provider: str, model: str, output_destination: str, system_prompt: str = RESUME_WRITER_PERSONA
     ):
         
         default_llm_provider = "GPT"
@@ -50,8 +51,7 @@ class ResumeGenerator:
         self.system_prompt = system_prompt
         self.provider = default_llm_provider if provider is None or provider.strip() == "" else provider
         self.model = default_llm_model if model is None or model.strip() == "" else model
-        self.downloads_dir = utils.get_default_download_folder() if downloads_dir is None or downloads_dir.strip() == "" else downloads_dir
-
+        self.output_destination = output_destination
         if api_key is None or api_key.strip() == "os":
                 api_env = llm_mapping_dict[self.provider]["api_env"]
                 if api_env != None and api_env.strip() != "":
@@ -63,7 +63,6 @@ class ResumeGenerator:
 
         self.llm = self.get_llm_instance()
 
-    @staticmethod
     def get_llm_instance(self):
         if self.provider == "GPT":
             return ChatGPT(api_key=self.api_key, model=self.model, system_prompt=self.system_prompt)
@@ -135,7 +134,7 @@ class ResumeGenerator:
 
         job_details = self.llm.get_response(prompt=prompt, need_json_output=True)
 
-        jd_path = utils.job_doc_name(job_details, self.downloads_dir, "jd")
+        jd_path = self.job_doc_name(job_details, self.output_destination, "jd")
 
         utils.write_json(jd_path, job_details)
         print(f"Job Details JSON generated at: {jd_path}")
@@ -160,7 +159,6 @@ class ResumeGenerator:
                 "linkedin": user_data["media"]["linkedin"]
                 }
 
-
             # Other Sections
             for section in ['work_experience', 'projects', 'skill_section', 'education', 'certifications', 'achievements']:
                 section_log = f"Processing Resume's {section.upper()} Section..."
@@ -184,7 +182,7 @@ class ResumeGenerator:
 
             resume_details['keywords'] = ', '.join(job_content['keywords'])
             
-            resume_path = utils.job_doc_name(job_content, self.downloads_dir, "resume")
+            resume_path = self.job_doc_name(job_content, self.output_destination, "resume")
 
             utils.write_json(resume_path, resume_details)
 
@@ -229,11 +227,11 @@ class ResumeGenerator:
 
             tex_temp_path = os.path.join(os.path.realpath(output_path), tex_filename)
             utils.write_file(tex_temp_path, resume_latex)
-            return resume_latex
+            return resume_latex, tex_temp_path
         
         except Exception as e:
             print(e)
-            return None
+            return None, None
         
     @staticmethod
     def save_latex_as_pdf(tex_file_path: str, dst_path: str):
@@ -241,7 +239,13 @@ class ResumeGenerator:
             # Call pdflatex to convert LaTeX to PDF
             prev_loc = os.getcwd()
             os.chdir(os.path.dirname(tex_file_path))
+            
             try:
+                # Check if pdflatex is available
+                if shutil.which("pdflatex") is None:
+                    print("Pdflatex is not installed or not available in the system PATH.")
+                    return None
+
                 result = subprocess.run(
                     ["pdflatex", tex_file_path, "&>/dev/null"],
                     stdout=subprocess.PIPE,
@@ -282,7 +286,7 @@ class ResumeGenerator:
             print(e)
             return None
         
-    def cover_letter_generator(self, job_details: dict, user_data: dict, need_pdf: bool = True, is_st=False):
+    def cover_letter_generator(self, job_details: dict, user_data: dict, need_pdf: bool = True):
 
         try:
             prompt = PromptTemplate(
@@ -292,7 +296,7 @@ class ResumeGenerator:
 
             cover_letter = self.llm.get_response(prompt=prompt, expecting_longer_output=True)
 
-            cv_path = utils.job_doc_name(job_details, self.downloads_dir, "cv")
+            cv_path = self.job_doc_name(job_details, self.output_destination, "cv")
             utils.write_file(cv_path, cover_letter)
             print("Cover Letter generated at: ", cv_path)
             if need_pdf:

@@ -75,3 +75,13 @@ class ResumeSchema(BaseModel):
     projects: List[Project] = Field(description="Project experiences, including project name, type, link, resources, dates, and description.")
     certifications: List[Certification] = Field(description="job relevant certifications that you have earned, including the name, issuing organization, and a link to verify the certification.")
     achievements: List[str] = Field(description="job relevant key accomplishments, awards, or recognitions that demonstrate your skills and abilities.")
+
+class JobDetails(BaseModel):
+    job_title: str = Field(description="The specific role, its level, and scope within the organization.")
+    job_purpose: str = Field(description="A high-level overview of the role and why it exists in the organization.")
+    keywords: List[str] = Field(description="Key expertise, skills, and requirements the job demands.")
+    job_duties_and_responsibilities: List[str] = Field(description="Focus on essential functions, their frequency and importance, level of decision-making, areas of accountability, and any supervisory responsibilities.")
+    required_qualifications: List[str] = Field(description="Including education, minimum experience, specific knowledge, skills, abilities, and any required licenses or certifications.")
+    preferred_qualifications: List[str] = Field(description="Additional \"nice-to-have\" qualifications that could set a candidate apart.")
+    company_name: str = Field(description="The name of the hiring organization.")
+    company_details: str = Field(description="Overview, mission, values, or way of working that could be relevant for tailoring a resume or cover letter.")

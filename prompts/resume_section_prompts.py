@@ -127,12 +127,11 @@ Instructions:
 1. Focus: Craft three highly relevant project experiences aligned with the job description.
 2. Content:
   2.1. Bullet points: 3 per experience, closely mirroring job requirements.
-  2.2. Impact: Quantify each bullet point for measurable results.
-  2.3. Storytelling: Utilize STAR methodology (Situation, Task, Action, Result) implicitly within each bullet point.
-  2.4. Action Verbs: Showcase soft skills with strong, active verbs.
-  2.5. Honesty: Prioritize truthfulness and objective language.
-  2.6. Structure: Each bullet point follows "Did X by doing Y, achieved Z" format.
-  2.7. Specificity: Prioritize relevance to the specific job over general achievements.
+  2.2. Storytelling: Utilize STAR methodology (Situation, Task, Action, Result) implicitly within each bullet point.
+  2.3. Action Verbs: Showcase soft skills with strong, active verbs.
+  2.4. Honesty: Prioritize truthfulness and objective language.
+  2.5. Structure: Each bullet point follows "Did X by doing Y, achieved Z" format.
+  2.6. Specificity: Prioritize relevance to the specific job over general achievements.
 3. Style:
   3.1. Clarity: Clear expression trumps impressiveness.
   3.2. Voice: Use active voice whenever possible.
@@ -215,7 +214,7 @@ Instructions:
 1. Focus: Craft three highly relevant work experiences aligned with the job description.
 2. Content:
   2.1. Bullet points: 3 per experience, closely mirroring job requirements.
-  2.2. Impact: Quantify each bullet point for measurable results.
+  2.2. Impact: If the information exists to quantify each bullet point, also include measurable results.
   2.3. Storytelling: Utilize STAR methodology (Situation, Task, Action, Result) implicitly within each bullet point.
   2.4. Action Verbs: Showcase soft skills with strong, active verbs.
   2.5. Honesty: Prioritize truthfulness and objective language.
