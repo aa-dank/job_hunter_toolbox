@@ -13,8 +13,9 @@ job_content_path = r"input_data/Adobe Finance Data Scientist.pdf"
 resume_pdf_path = r"input_data/full_resume_contents_20241124.pdf"
 #resume_pdf_path = r"input_data/Grad School Resume.pdf"
 job_details_dict, job_details_filepath = generator.extract_job_content(job_content_path)
+resume_dict = generator.user_data_extraction(user_data_path=resume_pdf_path)
 resume_details_dict, resume_details_filepath = generator.generate_resume_json(job_content=job_details_dict,
-                                                                              user_data=resume_pdf_path)
+                                                                              user_data=resume_dict)
 
 resume_latex, resume_tex_path = generator.resume_json_to_resume_tex(resume_details=resume_details_dict, tex_filename="resume.tex")
 

@@ -1,23 +1,22 @@
 import jinja2
 import json
 import os
+import PyPDF2
 import re
 import shutil
 import subprocess
 import validators
 
 from bs4 import BeautifulSoup
+from fpdf import FPDF
 from langchain_core.output_parsers import JsonOutputParser
 from langchain.prompts import PromptTemplate
 from models import ChatGPT, Gemini, OllamaModel
 from generation_schemas import Achievements, Certifications, Educations, Experiences, JobDetails, Projects, ResumeSchema, SkillSections
-from zlm import AutoApplyModel
+#from zlm import AutoApplyModel
 from prompts.extraction_prompts import RESUME_DETAILS_EXTRACTOR, JOB_DETAILS_EXTRACTOR, CV_GENERATOR, RESUME_WRITER_PERSONA
 from prompts.resume_section_prompts import EXPERIENCE, SKILLS, PROJECTS, EDUCATIONS, CERTIFICATIONS, ACHIEVEMENTS
-from zlm.utils.data_extraction import extract_text
-from zlm.utils.latex_ops import escape_for_latex, use_template
-from zlm.utils.metrics import jaccard_similarity, overlap_coefficient, cosine_similarity, vector_embedding_similarity
-from zlm.utils import utils
+
 
 
 llm_mapping_dict = {
@@ -40,6 +39,81 @@ section_mapping_dict = {
     "achievements": {"prompt":ACHIEVEMENTS, "schema": Achievements},
 }
 
+def extract_pdf_text(pdf_path: str):
+    resume_text = ""
+
+    with open(pdf_path, 'rb') as file:
+        pdf_reader = PyPDF2.PdfReader(file)
+        num_pages = len(pdf_reader.pages)
+
+        for page_num in range(num_pages):
+            page = pdf_reader.pages[page_num]
+            text = page.extract_text().split("\n")
+
+            # Remove Unicode characters from each line
+            cleaned_text = [re.sub(r'[^\x00-\x7F]+', '', line) for line in text]
+
+            # Join the lines into a single string
+            cleaned_text_string = '\n'.join(cleaned_text)
+            resume_text += cleaned_text_string
+        
+        return resume_text
+
+def escape_for_latex(data):
+    if isinstance(data, dict):
+        new_data = {}
+        for key in data.keys():
+            new_data[key] = escape_for_latex(data[key])
+        return new_data
+    elif isinstance(data, list):
+        return [escape_for_latex(item) for item in data]
+    elif isinstance(data, str):
+        # Adapted from https://stackoverflow.com/q/16259923
+        latex_special_chars = {
+            "&": r"\&",
+            "%": r"\%",
+            "$": r"\$",
+            "#": r"\#",
+            "_": r"\_",
+            "{": r"\{",
+            "}": r"\}",
+            "~": r"\textasciitilde{}",
+            "^": r"\^{}",
+            "\\": r"\textbackslash{}",
+            "\n": "\\newline%\n",
+            "-": r"{-}",
+            "\xA0": "~",  # Non-breaking space
+            "[": r"{[}",
+            "]": r"{]}",
+        }
+        return "".join([latex_special_chars.get(c, c) for c in data])
+
+    return data
+
+def use_template(jinja_env, json_resume):
+    try:
+        resume_template = jinja_env.get_template(f"resume.tex.jinja")
+        resume = resume_template.render(json_resume)
+
+        return resume
+    except Exception as e:
+        print(e)
+        return None
+    
+def text_to_pdf(text: str, file_path: str):
+    """Converts the given text to a PDF and saves it to the specified file path.
+
+    Args:
+        text (str): The text to be converted to PDF.
+        file_path (str): The file path where the PDF will be saved.
+    """
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=11)
+    # Encode the text explicitly using 'latin-1' encoding
+    encoded_text = text.encode('utf-8').decode('latin-1')
+    pdf.multi_cell(0, 5, txt=encoded_text)
+    pdf.output(file_path)
 
 class JobApplicationBuilder:
  
@@ -110,7 +184,7 @@ class JobApplicationBuilder:
             raise ValueError(f"Unsupported file format: {extension}\nfile_path: {job_filepath}")
 
         if extension == 'pdf':
-            job_content_str = extract_text(job_filepath)
+            job_content_str = extract_pdf_text(job_filepath)
         elif extension == 'json':
             with open(job_filepath, 'r') as file:
                 job_content_str = json.load(file)
@@ -137,7 +211,10 @@ class JobApplicationBuilder:
 
         jd_path = self.job_doc_name(job_details, self.output_destination, "jd")
 
-        utils.write_json(jd_path, job_details)
+        # Save the job details in a JSON file
+        with open(jd_path, 'w') as file:
+            json.dump(job_details, file, indent=4)
+        
         print(f"Job Details JSON generated at: {jd_path}")
 
         return job_details, jd_path
@@ -152,7 +229,7 @@ class JobApplicationBuilder:
         Returns:
             dict: The resume data in JSON format.
         """
-        resume_text = extract_text(pdf_path)
+        resume_text = extract_pdf_text(pdf_path)
 
         json_parser = JsonOutputParser(pydantic_object=ResumeSchema)
 
@@ -184,7 +261,9 @@ class JobApplicationBuilder:
         if extension == ".pdf":
             user_data = self.resume_to_json(user_data_path)
         elif extension == ".json":
-            user_data = utils.read_json(user_data_path)
+            # user_dat from json file
+            with open(user_data_path, 'r') as file:
+                user_data = json.load(file)
         else:
             raise Exception("Invalid file format. Please provide a PDF, JSON file or url.")
         
@@ -233,7 +312,9 @@ class JobApplicationBuilder:
             
             resume_path = self.job_doc_name(job_content, self.output_destination, "resume")
 
-            utils.write_json(resume_path, resume_details)
+            # Save the resume details in a JSON file
+            with open(resume_path, 'w') as file:
+                json.dump(resume_details, file, indent=4)
 
             return resume_details, resume_path
         
@@ -275,7 +356,11 @@ class JobApplicationBuilder:
             resume_latex = use_template(latex_jinja_env, escaped_resume_dict)
 
             tex_temp_path = os.path.join(os.path.realpath(output_path), tex_filename)
-            utils.write_file(tex_temp_path, resume_latex)
+            
+            # Save the resume in a tex file
+            with open(tex_temp_path, 'w') as file:
+                file.write(resume_latex)
+
             return resume_latex, tex_temp_path
         
         except Exception as e:
@@ -346,10 +431,13 @@ class JobApplicationBuilder:
             cover_letter = self.llm.get_response(prompt=prompt, expecting_longer_output=True)
 
             cv_path = self.job_doc_name(job_details, self.output_destination, "cv")
-            utils.write_file(cv_path, cover_letter)
+            # Save the cover letter in a text file
+            with open(cv_path, 'w') as file:
+                file.write(cover_letter)
+
             print("Cover Letter generated at: ", cv_path)
             if need_pdf:
-                utils.text_to_pdf(cover_letter, cv_path.replace(".txt", ".pdf"))
+                text_to_pdf(cover_letter, cv_path.replace(".txt", ".pdf"))
                 print("Cover Letter PDF generated at: ", cv_path.replace(".txt", ".pdf"))
             
             return cover_letter, cv_path.replace(".txt", ".pdf")
