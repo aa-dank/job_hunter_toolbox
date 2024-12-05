@@ -14,8 +14,8 @@ from langchain.prompts import PromptTemplate
 from models import LLMProvider
 from generation_schemas import Achievements, Certifications, Educations, Experiences, JobDetails, Projects, ResumeSchema, SkillSections
 from zlm import AutoApplyModel
-from prompts.extraction_prompts import RESUME_DETAILS_EXTRACTOR, JOB_DETAILS_EXTRACTOR, CV_GENERATOR, RESUME_WRITER_PERSONA
-from prompts.resume_section_prompts import EXPERIENCE, SKILLS, PROJECTS, EDUCATIONS, CERTIFICATIONS, ACHIEVEMENTS
+from prompts.extraction_prompts import RESUME_DETAILS_EXTRACTOR, JOB_DETAILS_EXTRACTOR, CV_GENERATOR
+from prompts.resume_section_prompts import EXPERIENCE, SKILLS, PROJECTS, EDUCATIONS, CERTIFICATIONS, ACHIEVEMENTS, RESUME_WRITER_PERSONA
 
 
 
@@ -100,6 +100,28 @@ def use_template(jinja_env, json_resume):
         print(e)
         return None
     
+def job_doc_name(job_details: dict, output_dir: str = "output", type: str = ""):
+    def clean_string(text: str):
+        text = text.title().replace(" ", "").strip()
+        text = re.sub(r"[^a-zA-Z0-9]+", "", text)
+        return text
+    
+    company_name = clean_string(job_details["company_name"])
+    job_title = clean_string(job_details["job_title"])[:15]
+    doc_name = "_".join([company_name, job_title])
+    doc_dir = os.path.join(output_dir, company_name)
+    os.makedirs(doc_dir, exist_ok=True)
+
+    if type == "jd":
+        return os.path.join(doc_dir, f"{doc_name}_JD.json")
+    elif type == "resume":
+        return os.path.join(doc_dir, f"{doc_name}_resume.json")
+    elif type == "cv":
+        return os.path.join(doc_dir, f"{doc_name}_cv.txt")
+    else:
+        return os.path.join(doc_dir, f"{doc_name}_")
+
+    
 def text_to_pdf(text: str, file_path: str):
     """Converts the given text to a PDF and saves it to the specified file path.
 
@@ -145,9 +167,10 @@ class JobApplicationBuilder:
             with open(job_filepath, 'r') as file:
                 job_content_str = file.read()
         
-        # process html file into job_content_str
         elif extension == 'html':
-            job_content_str = self.process_job_html(job_filepath)
+            #TODO: Implement the processing of HTML files
+            #job_content_str = self.process_job_html(job_filepath)
+            raise ValueError(f"Unsupported file format: {extension}\nfile_path: {job_filepath}")
 
         json_parser = JsonOutputParser(pydantic_object=JobDetails)
         
@@ -159,7 +182,7 @@ class JobApplicationBuilder:
 
         job_details = self.llm.get_response(prompt=prompt, need_json_output=True)
 
-        jd_path = self.job_doc_name(job_details, self.output_destination, "jd")
+        jd_path = job_doc_name(job_details, self.output_destination, "jd")
 
         # Save the job details in a JSON file
         with open(jd_path, 'w') as file:
@@ -260,7 +283,7 @@ class JobApplicationBuilder:
 
             resume_details['keywords'] = ', '.join(job_content['keywords'])
             
-            resume_path = self.job_doc_name(job_content, self.output_destination, "resume")
+            resume_path = job_doc_name(job_content, self.output_destination, "resume")
 
             # Save the resume details in a JSON file
             with open(resume_path, 'w') as file:
@@ -380,7 +403,7 @@ class JobApplicationBuilder:
 
             cover_letter = self.llm.get_response(prompt=prompt)
 
-            cv_path = self.job_doc_name(job_details, self.output_destination, "cv")
+            cv_path = job_doc_name(job_details, self.output_destination, "cv")
             # Save the cover letter in a text file
             with open(cv_path, 'w') as file:
                 file.write(cover_letter)
