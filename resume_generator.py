@@ -11,9 +11,9 @@ from bs4 import BeautifulSoup
 from fpdf import FPDF
 from langchain_core.output_parsers import JsonOutputParser
 from langchain.prompts import PromptTemplate
-from models import ChatGPT, Gemini, OllamaModel
+from models import LLMProvider
 from generation_schemas import Achievements, Certifications, Educations, Experiences, JobDetails, Projects, ResumeSchema, SkillSections
-#from zlm import AutoApplyModel
+from zlm import AutoApplyModel
 from prompts.extraction_prompts import RESUME_DETAILS_EXTRACTOR, JOB_DETAILS_EXTRACTOR, CV_GENERATOR, RESUME_WRITER_PERSONA
 from prompts.resume_section_prompts import EXPERIENCE, SKILLS, PROJECTS, EDUCATIONS, CERTIFICATIONS, ACHIEVEMENTS
 
@@ -118,66 +118,16 @@ def text_to_pdf(text: str, file_path: str):
 class JobApplicationBuilder:
  
     def __init__(
-        self, api_key: str, provider: str, model: str, output_destination: str, system_prompt: str = RESUME_WRITER_PERSONA
+        self, llm: LLMProvider, output_destination: str,
+        system_prompt: str = RESUME_WRITER_PERSONA
     ):
-        
-        default_llm_provider = "GPT"
-        default_llm_model = "gpt-4o"
         self.system_prompt = system_prompt
-        self.provider = default_llm_provider if provider is None or provider.strip() == "" else provider
-        self.model = default_llm_model if model is None or model.strip() == "" else model
+        self.llm = llm
         self.output_destination = output_destination
-        if api_key is None or api_key.strip() == "os":
-                api_env = llm_mapping_dict[self.provider]["api_env"]
-                if api_env != None and api_env.strip() != "":
-                    self.api_key = os.environ.get(llm_mapping_dict[self.provider]["api_env"]) 
-                else:
-                    self.api_key = None
-        else:
-            self.api_key = api_key
+        # Remove get_llm_instance and related initialization
+        # ...existing code...
 
-        self.llm = self.get_llm_instance()
-
-    def get_llm_instance(self):
-        if self.provider == "GPT":
-            return ChatGPT(api_key=self.api_key, model=self.model, system_prompt=self.system_prompt)
-        elif self.provider == "Gemini":
-            return Gemini(api_key=self.api_key, model=self.model, system_prompt=self.system_prompt)
-        elif self.provider == "Ollama":
-            return OllamaModel(model=self.model, system_prompt=self.system_prompt)
-        else:
-            raise Exception("Invalid LLM Provider")
-
-    @staticmethod
-    def job_doc_name(job_details: dict, output_dir: str = "output", type: str = ""):
-        def clean_string(text: str):
-            text = text.title().replace(" ", "").strip()
-            text = re.sub(r"[^a-zA-Z0-9]+", "", text)
-            return text
-        
-        company_name = clean_string(job_details["company_name"])
-        job_title = clean_string(job_details["job_title"])[:15]
-        doc_name = "_".join([company_name, job_title])
-        doc_dir = os.path.join(output_dir, company_name)
-        os.makedirs(doc_dir, exist_ok=True)
-
-        if type == "jd":
-            return os.path.join(doc_dir, f"{doc_name}_JD.json")
-        elif type == "resume":
-            return os.path.join(doc_dir, f"{doc_name}_resume.json")
-        elif type == "cv":
-            return os.path.join(doc_dir, f"{doc_name}_cv.txt")
-        else:
-            return os.path.join(doc_dir, f"{doc_name}_")
-
-    def process_job_html(self, job_filepath: str):
-        with open(job_filepath, 'r') as file:
-            job_html = file.read()
-        
-        soup = BeautifulSoup(job_html, 'html.parser')
-        job_content = soup.get_text()
-        return job_content
-
+    # Update methods to use self.llm directly
     def extract_job_content(self, job_filepath: str):
         extension = job_filepath.split('.')[-1]
         if not extension in ['pdf', 'json', 'txt', 'html', 'md']:
@@ -297,7 +247,7 @@ class JobApplicationBuilder:
                     partial_variables={"format_instructions": json_parser.get_format_instructions()}
                     ).format(section_data = json.dumps(user_data[section]), job_description = json.dumps(job_content))
 
-                response = self.llm.get_response(prompt=prompt, expecting_longer_output=True, need_json_output=True)
+                response = self.llm.get_response(prompt=prompt, need_json_output=True)
 
                 # Check for empty sections
                 if response is not None and isinstance(response, dict):
@@ -428,7 +378,7 @@ class JobApplicationBuilder:
                 input_variables=["my_work_information", "job_description"],
                 ).format(job_description=job_details, my_work_information=user_data)
 
-            cover_letter = self.llm.get_response(prompt=prompt, expecting_longer_output=True)
+            cover_letter = self.llm.get_response(prompt=prompt)
 
             cv_path = self.job_doc_name(job_details, self.output_destination, "cv")
             # Save the cover letter in a text file
@@ -445,4 +395,4 @@ class JobApplicationBuilder:
             print(e)
             return None, None
 
-    
+

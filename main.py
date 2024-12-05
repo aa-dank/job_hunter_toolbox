@@ -1,12 +1,20 @@
 import os
 from creds import OPENAI_KEY
 from resume_generator import JobApplicationBuilder
+from models import ChatGPT
+from prompts.resume_section_prompts import RESUME_WRITER_PERSONA
+
+llm = ChatGPT(
+    api_key=OPENAI_KEY,
+    model="gpt-4o",
+    system_prompt=RESUME_WRITER_PERSONA,
+    max_output_tokens=4000,
+    temperature=0.7
+)
 
 generator = JobApplicationBuilder(
-    api_key=OPENAI_KEY,
-    provider="GPT", #ENTER PROVIDER <gemini> or <openai>
-    output_destination=r"output_files", #[optional] ENTER FOLDER PATH WHERE FILE GET DOWNLOADED, By default, 'downloads' folder
-    model="gpt-4o"#"chatgpt-4o-latest"
+    llm=llm,
+    output_destination="output_files"
 )
 
 job_content_path = r"input_data/Adobe Finance Data Scientist.pdf"
