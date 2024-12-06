@@ -1,6 +1,6 @@
 import os
 from creds import OPENAI_KEY
-from resume_generator import JobApplicationBuilder
+from application_generator import JobApplicationBuilder
 from models import ChatGPT
 from prompts.resume_section_prompts import RESUME_WRITER_PERSONA
 
@@ -14,7 +14,6 @@ llm = ChatGPT(
 
 generator = JobApplicationBuilder(
     llm=llm,
-    output_destination="output_files"
 )
 
 job_content_path = r"input_data/Adobe Finance Data Scientist.pdf"

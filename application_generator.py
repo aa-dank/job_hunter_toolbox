@@ -5,15 +5,14 @@ import PyPDF2
 import re
 import shutil
 import subprocess
-import validators
 
-from bs4 import BeautifulSoup
+from datetime import datetime
 from fpdf import FPDF
 from langchain_core.output_parsers import JsonOutputParser
 from langchain.prompts import PromptTemplate
 from models import LLMProvider
 from generation_schemas import Achievements, Certifications, Educations, Experiences, JobDetails, Projects, ResumeSchema, SkillSections
-from zlm import AutoApplyModel
+#from zlm import AutoApplyModel
 from prompts.extraction_prompts import RESUME_DETAILS_EXTRACTOR, JOB_DETAILS_EXTRACTOR, CV_GENERATOR
 from prompts.resume_section_prompts import EXPERIENCE, SKILLS, PROJECTS, EDUCATIONS, CERTIFICATIONS, ACHIEVEMENTS, RESUME_WRITER_PERSONA
 
@@ -99,27 +98,6 @@ def use_template(jinja_env, json_resume):
     except Exception as e:
         print(e)
         return None
-    
-def job_doc_name(job_details: dict, output_dir: str = "output", type: str = ""):
-    def clean_string(text: str):
-        text = text.title().replace(" ", "").strip()
-        text = re.sub(r"[^a-zA-Z0-9]+", "", text)
-        return text
-    
-    company_name = clean_string(job_details["company_name"])
-    job_title = clean_string(job_details["job_title"])[:15]
-    doc_name = "_".join([company_name, job_title])
-    doc_dir = os.path.join(output_dir, company_name)
-    os.makedirs(doc_dir, exist_ok=True)
-
-    if type == "jd":
-        return os.path.join(doc_dir, f"{doc_name}_JD.json")
-    elif type == "resume":
-        return os.path.join(doc_dir, f"{doc_name}_resume.json")
-    elif type == "cv":
-        return os.path.join(doc_dir, f"{doc_name}_cv.txt")
-    else:
-        return os.path.join(doc_dir, f"{doc_name}_")
 
     
 def text_to_pdf(text: str, file_path: str):
@@ -140,16 +118,69 @@ def text_to_pdf(text: str, file_path: str):
 class JobApplicationBuilder:
  
     def __init__(
-        self, llm: LLMProvider, output_destination: str,
+        self, llm: LLMProvider, output_destination: str = "output_files",
         system_prompt: str = RESUME_WRITER_PERSONA
     ):
         self.system_prompt = system_prompt
         self.llm = llm
         self.output_destination = output_destination
-        # Remove get_llm_instance and related initialization
-        # ...existing code...
+        self.org = None
+        self.job_title = None
+        self.timestamp = datetime.now().strftime(r"%Y%m%d%H%M%S")
 
-    # Update methods to use self.llm directly
+    def _job_doc_path(self, file_type: str = ""):
+        """
+        Generate the file path for job-related documents.
+
+        Constructs a directory path in the format:
+        `<self.output_destination>/<org>/<job_title>_<timestamp>`,
+        where `org` is the cleaned company name and `job_title` is the cleaned job title.
+
+        Parameters:
+            file_type (str): Specifies the type of file to generate the path for.
+                Accepted values are:
+                - "jd": Returns the path for the job details JSON file named "JD.json".
+                - "resume": Returns the path for the resume JSON file named "resume.json".
+                - "cv": Returns the path for the cover letter text file named "cv.txt".
+                - Any other value or empty string: Returns the base directory path without a filename.
+
+        Returns:
+            str: The full file path for the specified file type. If a file with the same name
+            already exists, appends an incrementing counter to the filename to ensure uniqueness.
+        """
+        def clean_string(text: str):
+            text = text.title().replace(" ", "").strip()
+            text = re.sub(r"[^a-zA-Z0-9]+", "", text)
+            return text
+
+        company_name = clean_string(self.org)
+        job_title = clean_string(self.job_title)[:15]
+        timestamp = self.timestamp
+
+        doc_dir = os.path.join(self.output_destination, company_name, f"{job_title}_{timestamp}")
+        os.makedirs(doc_dir, exist_ok=True)
+
+        if file_type == "jd":
+            filename_base = "JD.json"
+        elif file_type == "resume":
+            filename_base = "resume.json"
+        elif file_type == "cv":
+            filename_base = "cv.txt"
+        else:
+            filename_base = ""
+
+        filepath = os.path.join(doc_dir, filename_base)
+
+        counter = 1
+        base_filename, extension = os.path.splitext(filename_base)
+
+        while os.path.exists(filepath):
+            filename_base_with_counter = f"{base_filename}_{counter}{extension}"
+            filepath = os.path.join(doc_dir, filename_base_with_counter)
+            counter += 1
+
+        return filepath
+
     def extract_job_content(self, job_filepath: str):
         extension = job_filepath.split('.')[-1]
         if not extension in ['pdf', 'json', 'txt', 'html', 'md']:
@@ -181,8 +212,10 @@ class JobApplicationBuilder:
             ).format(job_description=job_content_str)
 
         job_details = self.llm.get_response(prompt=prompt, need_json_output=True)
+        self.org = job_details["company_name"]
+        self.job_title = job_details["job_title"]
 
-        jd_path = job_doc_name(job_details, self.output_destination, "jd")
+        jd_path = self._job_doc_path(file_type="jd")
 
         # Save the job details in a JSON file
         with open(jd_path, 'w') as file:
@@ -283,7 +316,7 @@ class JobApplicationBuilder:
 
             resume_details['keywords'] = ', '.join(job_content['keywords'])
             
-            resume_path = job_doc_name(job_content, self.output_destination, "resume")
+            resume_path = self._job_doc_path(file_type="resume")
 
             # Save the resume details in a JSON file
             with open(resume_path, 'w') as file:
@@ -403,7 +436,7 @@ class JobApplicationBuilder:
 
             cover_letter = self.llm.get_response(prompt=prompt)
 
-            cv_path = job_doc_name(job_details, self.output_destination, "cv")
+            cv_path = self._job_doc_path(file_type="cv")
             # Save the cover letter in a text file
             with open(cv_path, 'w') as file:
                 file.write(cover_letter)
