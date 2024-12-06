@@ -6,6 +6,7 @@ import re
 import shutil
 import subprocess
 
+
 from datetime import datetime
 from fpdf import FPDF
 from langchain_core.output_parsers import JsonOutputParser
@@ -16,18 +17,6 @@ from generation_schemas import Achievements, Certifications, Educations, Experie
 from prompts.extraction_prompts import RESUME_DETAILS_EXTRACTOR, JOB_DETAILS_EXTRACTOR, CV_GENERATOR
 from prompts.resume_section_prompts import EXPERIENCE, SKILLS, PROJECTS, EDUCATIONS, CERTIFICATIONS, ACHIEVEMENTS, RESUME_WRITER_PERSONA
 
-
-
-llm_mapping_dict = {
-    'GPT': {
-        "api_env": "OPENAI_API_KEY",
-        "model": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-4-1106-preview", "gpt-3.5-turbo"], 
-    },
-    'Gemini': {
-        "api_env": "GEMINI_API_KEY",
-        "model": ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-1.5-pro", "gemini-1.5-pro-latest", "gemini-1.5-pro-exp-0801"], # "gemini-1.0-pro", "gemini-1.0-pro-latest"
-    }
-}
 
 section_mapping_dict = {
     "work_experience": {"prompt":EXPERIENCE, "schema": Experiences},
