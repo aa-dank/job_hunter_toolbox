@@ -78,7 +78,7 @@ def escape_for_latex(data):
 
     return data
 
-def use_template(jinja_env, json_resume):
+def use_template(jinja_env: jinja2.Environment, json_resume: dict):
     try:
         resume_template = jinja_env.get_template(f"resume.tex.jinja")
         resume = resume_template.render(json_resume)
@@ -88,7 +88,6 @@ def use_template(jinja_env, json_resume):
         print(e)
         return None
 
-    
 def text_to_pdf(text: str, file_path: str):
     """Converts the given text to a PDF and saves it to the specified file path.
 
@@ -117,7 +116,7 @@ class JobApplicationBuilder:
         self.job_title = None
         self.timestamp = datetime.now().strftime(r"%Y%m%d%H%M%S")
 
-    def _job_doc_path(self, file_type: str = ""):
+    def get_job_doc_path(self, file_type: str = ""):
         """
         Generate the file path for job-related documents.
 
@@ -129,6 +128,7 @@ class JobApplicationBuilder:
             file_type (str): Specifies the type of file to generate the path for.
                 Accepted values are:
                 - "jd": Returns the path for the job details JSON file named "JD.json".
+                - "resume_json": Returns the path for the resume JSON file named "resume.json".
                 - "resume": Returns the path for the resume JSON file named "resume.json".
                 - "cv": Returns the path for the cover letter text file named "cv.txt".
                 - Any other value or empty string: Returns the base directory path without a filename.
@@ -151,8 +151,10 @@ class JobApplicationBuilder:
 
         if file_type == "jd":
             filename_base = "JD.json"
-        elif file_type == "resume":
+        elif file_type == "resume_json":
             filename_base = "resume.json"
+        elif file_type == "resume":
+            filename_base = "resume.tex"
         elif file_type == "cv":
             filename_base = "cv.txt"
         else:
@@ -204,7 +206,7 @@ class JobApplicationBuilder:
         self.org = job_details["company_name"]
         self.job_title = job_details["job_title"]
 
-        jd_path = self._job_doc_path(file_type="jd")
+        jd_path = self.get_job_doc_path(file_type="jd")
 
         # Save the job details in a JSON file
         with open(jd_path, 'w') as file:
@@ -284,7 +286,7 @@ class JobApplicationBuilder:
 
             # Other Sections
             for section in ['work_experience', 'projects', 'skill_section', 'education', 'certifications', 'achievements']:
-                section_log = f"Processing Resume's {section.upper()} Section..."
+                print(f"Processing Resume's {section.upper()} Section...")
                 json_parser = JsonOutputParser(pydantic_object=section_mapping_dict[section]["schema"])
                 
                 prompt = PromptTemplate(
@@ -305,7 +307,7 @@ class JobApplicationBuilder:
 
             resume_details['keywords'] = ', '.join(job_content['keywords'])
             
-            resume_path = self._job_doc_path(file_type="resume")
+            resume_path = self.get_job_doc_path(file_type="resume_json")
 
             # Save the resume details in a JSON file
             with open(resume_path, 'w') as file:
@@ -317,7 +319,7 @@ class JobApplicationBuilder:
             print(e)
             return None
     
-    def resume_json_to_resume_tex(self, resume_details, tex_filename):
+    def resume_json_to_resume_tex(self, resume_details):
         """
         Turns either a json file or dictionary into a tex file using the resume template.
         :param resume_details: The resume details in json or dictionary format.
@@ -330,7 +332,7 @@ class JobApplicationBuilder:
 
 
             templates_path = os.path.join(os.getcwd(), 'templates')
-            output_path = os.path.join(os.getcwd(), 'output_files')
+            output_path = self.get_job_doc_path(file_type="resume")
 
             latex_jinja_env = jinja2.Environment(
                 block_start_string="\BLOCK{",
@@ -350,68 +352,77 @@ class JobApplicationBuilder:
 
             resume_latex = use_template(latex_jinja_env, escaped_resume_dict)
 
-            tex_temp_path = os.path.join(os.path.realpath(output_path), tex_filename)
             
             # Save the resume in a tex file
-            with open(tex_temp_path, 'w') as file:
+            with open(output_path, 'w') as file:
                 file.write(resume_latex)
 
-            return resume_latex, tex_temp_path
+            return resume_latex, output_path
         
         except Exception as e:
             print(e)
             return None, None
         
     @staticmethod
-    def save_latex_as_pdf(tex_file_path: str, dst_path: str):
+    def save_latex_as_pdf(tex_file_path: str, destination_path: str = None):
+        """
+        Compiles a LaTeX `.tex` file into a PDF using `pdflatex` and saves it to a specified directory.
+
+        This method runs `pdflatex` on the provided `.tex` file. If `destination_path` is given,
+        the resulting PDF is saved there; otherwise, it's saved in the same directory as the `.tex` file.
+        After compilation, auxiliary files generated by LaTeX are removed to keep the output directory clean.
+
+        Args:
+            tex_file_path (str): The path to the LaTeX `.tex` file to compile.
+            destination_path (str, optional): The directory where the PDF should be saved.
+                If not specified, defaults to the directory of `tex_file_path`.
+
+        Returns:
+            None
+
+        Prints:
+            - Success message indicating where the PDF was saved.
+            - Error messages if PDF generation fails.
+        """
         try:
-            # Call pdflatex to convert LaTeX to PDF
-            prev_loc = os.getcwd()
-            os.chdir(os.path.dirname(tex_file_path))
-            
-            try:
-                # Check if pdflatex is available
-                if shutil.which("pdflatex") is None:
-                    print("Pdflatex is not installed or not available in the system PATH.")
-                    return None
+            # Absolute path of the LaTeX file
+            tex_file_path = os.path.abspath(tex_file_path)
+            tex_dir = os.path.dirname(tex_file_path)
+            tex_filename = os.path.basename(tex_file_path)
+            filename_without_ext = os.path.splitext(tex_filename)[0]
 
-                result = subprocess.run(
-                    ["pdflatex", tex_file_path, "&>/dev/null"],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                )
-            except Exception as e:
-                print("Pdflatex failed to convert tex file to pdf.")
-                print(e)
+            # Determine output directory
+            if destination_path:
+                output_dir = os.path.abspath(destination_path)
+            else:
+                output_dir = tex_dir
 
+            # Ensure the output directory exists
+            os.makedirs(output_dir, exist_ok=True)
 
-            os.chdir(prev_loc)
-            resulted_pdf_path = tex_file_path.replace(".tex", ".pdf")
-            dst_tex_path = dst_path.replace(".pdf", ".tex")
-
-            os.rename(resulted_pdf_path, dst_path)
-            os.rename(tex_file_path, dst_tex_path)
+            # Run pdflatex with the output directory option
+            result = subprocess.run(
+                ["pdflatex", "-output-directory", output_dir, tex_file_path],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
 
             if result.returncode != 0:
-                print("Exit-code not 0, check result!")
-            try:
-                pass
-                # open_file(dst_path)
-            except Exception as e:
-                print("Unable to open the PDF file.")
+                print("Error during PDF generation:")
+                print(result.stderr.decode())
+                return None
 
-            filename_without_ext = os.path.basename(tex_file_path).split(".")[0]
-            unnessary_files = [
-                file
-                for file in os.listdir(os.path.dirname(os.path.realpath(tex_file_path)))
-                if file.startswith(filename_without_ext)
-            ]
+            # Clean up auxiliary files
+            aux_extensions = [".aux", ".log", ".out", ".toc"]
+            for ext in aux_extensions:
+                aux_file = os.path.join(output_dir, filename_without_ext + ext)
+                if os.path.exists(aux_file):
+                    os.remove(aux_file)
 
-            for file in unnessary_files:
-                file_path = os.path.join(os.path.dirname(tex_file_path), file)
-                if os.path.exists(file_path):
-                    os.remove(file_path)
+            print(f"PDF successfully saved to {output_dir}")
+
         except Exception as e:
+            print("An error occurred:")
             print(e)
             return None
         
@@ -425,7 +436,7 @@ class JobApplicationBuilder:
 
             cover_letter = self.llm.get_response(prompt=prompt)
 
-            cv_path = self._job_doc_path(file_type="cv")
+            cv_path = self.get_job_doc_path(file_type="cv")
             # Save the cover letter in a text file
             with open(cv_path, 'w') as file:
                 file.write(cover_letter)

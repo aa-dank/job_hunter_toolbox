@@ -24,13 +24,13 @@ resume_dict = generator.user_data_extraction(user_data_path=resume_pdf_path)
 resume_details_dict, resume_details_filepath = generator.generate_resume_json(job_content=job_details_dict,
                                                                               user_data=resume_dict)
 
-resume_latex, resume_tex_path = generator.resume_json_to_resume_tex(resume_details=resume_details_dict, tex_filename="resume.tex")
+resume_latex, resume_tex_path = generator.resume_json_to_resume_tex(resume_details=resume_details_dict)
 
 # prompt user to edit the tex file before converting to pdf. elicit user input to continue with the conversion.
 print(f"Please edit the resume.tex file before converting to pdf.")
-print(f"Press Enter to continue after editing the resume.tex file.")
+print(f"Press Enter to continue after editing the {resume_tex_path} file.")
 input()
-generator.save_latex_as_pdf(tex_file_path=resume_tex_path, dst_path="output_files")
+generator.save_latex_as_pdf(tex_file_path=resume_tex_path, destination_path="output_files")
 print(f"Resume PDF is saved at output_files folder.")
 
 # Create corresponding cover letter

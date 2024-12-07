@@ -73,7 +73,6 @@ class ChatGPT(LLMProvider):
         user_prompt = {"role": "user", "content": prompt}
 
         try:
-            # TODO: Decide value(temperature, top_p, max_tokens, stop) to get apt response
             completion = self.client.chat.completions.create(
                 model=self.model,
                 messages = [self.system_prompt, user_prompt],
