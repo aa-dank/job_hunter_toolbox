@@ -400,6 +400,14 @@ class JobApplicationBuilder:
             # Ensure the output directory exists
             os.makedirs(output_dir, exist_ok=True)
 
+            # Copy the resume.cls file to the output directory
+            cls_file_path = os.path.join(os.getcwd(), 'templates', 'resume.cls')
+            if os.path.exists(cls_file_path):
+                shutil.copy(cls_file_path, output_dir)
+            else:
+                print(f"Error: resume.cls file not found at {cls_file_path}")
+                return None
+
             # Run pdflatex with the output directory option
             result = subprocess.run(
                 ["pdflatex", "-output-directory", output_dir, tex_file_path],
@@ -418,6 +426,10 @@ class JobApplicationBuilder:
                 aux_file = os.path.join(output_dir, filename_without_ext + ext)
                 if os.path.exists(aux_file):
                     os.remove(aux_file)
+
+            # Remove the resume.cls file if it was copied
+            if cls_file_path != os.path.join(os.getcwd(), 'templates', 'resume.cls'):
+                os.remove(os.path.join(output_dir, "resume.cls"))
 
             print(f"PDF successfully saved to {output_dir}")
 

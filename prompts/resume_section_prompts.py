@@ -171,8 +171,7 @@ Instructions:
   2.2. Storytelling: Utilize STAR methodology (Situation, Task, Action, Result) implicitly within each bullet point.
   2.3. Action Verbs: Showcase soft skills with strong, active verbs.
   2.4. Honesty: Prioritize truthfulness and objective language.
-  2.5. Structure: Each bullet point follows "Did X by doing Y, achieved Z" format.
-  2.6. Specificity: Prioritize relevance to the specific job over general achievements.
+  2.5. Specificity: Prioritize relevance to the specific job over general achievements.
 3. Style:
   3.1. Clarity: Clear expression trumps impressiveness.
   3.2. Voice: Use active voice whenever possible.
@@ -259,8 +258,7 @@ Instructions:
   2.3. Storytelling: Utilize STAR methodology (Situation, Task, Action, Result) implicitly within each bullet point.
   2.4. Action Verbs: Showcase soft skills with strong, active verbs.
   2.5. Honesty: Prioritize truthfulness and objective language.
-  2.6. Structure: Each bullet point follows "Did X by doing Y, achieved Z" format.
-  2.7. Specificity: Prioritize relevance to the specific job over general achievements.
+  2.6. Specificity: Prioritize relevance to the specific job over general achievements.
 3. Style:
   3.1. Clarity: Clear expression trumps impressiveness.
   3.2. Voice: Use active voice whenever possible.
