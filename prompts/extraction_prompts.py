@@ -13,7 +13,7 @@ Note: The "keywords", "job_duties_and_responsibilities", and "required_qualifica
 {format_instructions}
 """
 
-CV_GENERATOR = """<task>
+COVER_LETTER_GENERATOR = """<task>
 create a compelling, concise cover letter that aligns my resume/work information with the job description and company value. Analyze and match my qualifications with the job requirements. Then, create cover letter.
 </task>
 

@@ -34,7 +34,7 @@ generator.save_latex_as_pdf(tex_file_path=resume_tex_path, destination_path="out
 print(f"Resume PDF is saved at output_files folder.")
 
 # Create corresponding cover letter
-cover_letter, cover_letter_tex_path = generator.cover_letter_generator(job_details=job_details_dict, user_data=resume_details_dict)
+cover_letter, cover_letter_tex_path = generator.generate_cover_letter(job_details=job_details_dict, user_data=resume_details_dict)
 print(f"Cover Letter is saved at {cover_letter_tex_path}")
 
 

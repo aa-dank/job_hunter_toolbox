@@ -14,7 +14,7 @@ from langchain.prompts import PromptTemplate
 from models import LLMProvider
 from generation_schemas import Achievements, Certifications, Educations, Experiences, JobDetails, Projects, ResumeSchema, SkillSections
 #from zlm import AutoApplyModel
-from prompts.extraction_prompts import RESUME_DETAILS_EXTRACTOR, JOB_DETAILS_EXTRACTOR, CV_GENERATOR
+from prompts.extraction_prompts import RESUME_DETAILS_EXTRACTOR, JOB_DETAILS_EXTRACTOR, COVER_LETTER_GENERATOR
 from prompts.resume_section_prompts import EXPERIENCE, SKILLS, PROJECTS, EDUCATIONS, CERTIFICATIONS, ACHIEVEMENTS, RESUME_WRITER_PERSONA
 
 
@@ -102,6 +102,7 @@ def text_to_pdf(text: str, file_path: str):
     encoded_text = text.encode('utf-8').decode('latin-1')
     pdf.multi_cell(0, 5, txt=encoded_text)
     pdf.output(file_path)
+    return file_path
 
 class JobApplicationBuilder:
  
@@ -130,7 +131,7 @@ class JobApplicationBuilder:
                 - "jd": Returns the path for the job details JSON file named "JD.json".
                 - "resume_json": Returns the path for the resume JSON file named "resume.json".
                 - "resume": Returns the path for the resume JSON file named "resume.json".
-                - "cv": Returns the path for the cover letter text file named "cv.txt".
+                - "cover_letter": Returns the path for the cover letter text file named "cv.txt".
                 - Any other value or empty string: Returns the base directory path without a filename.
 
         Returns:
@@ -155,8 +156,8 @@ class JobApplicationBuilder:
             filename_base = "resume.json"
         elif file_type == "resume":
             filename_base = "resume.tex"
-        elif file_type == "cv":
-            filename_base = "cv.txt"
+        elif file_type == "cover_letter":
+            filename_base = "cover_letter.txt"
         else:
             filename_base = ""
 
@@ -437,28 +438,53 @@ class JobApplicationBuilder:
             print("An error occurred:")
             print(e)
             return None
-        
-    def cover_letter_generator(self, job_details: dict, user_data: dict, need_pdf: bool = True):
 
+    def generate_cover_letter(self, job_details: dict, user_data: dict, need_pdf: bool = True):
+        """
+        Generates a tailored cover letter based on job details and user data.
+
+        This method constructs a prompt using the COVER_LETTER_GENERATOR template and
+        generates a cover letter using the language model (self.llm). It then saves the
+        cover letter as a text file, and if requested, converts it into a PDF file.
+
+        Args:
+            job_details (dict): A dictionary containing the job description and requirements.
+            user_data (dict): A dictionary containing the user's work information and personal details.
+            need_pdf (bool, optional): If True, converts the generated cover letter to a PDF file.
+                Defaults to True.
+
+        Returns:
+            tuple:
+                - cover_letter (str or None): The generated cover letter text, or None if an exception occurs.
+                - cover_letter_path (str or None): The file path to the saved cover letter (text or PDF),
+                  or None if an exception occurs.
+
+        Notes:
+            - The method uses `get_job_doc_path` to determine where to save the cover letter.
+            - If `need_pdf` is True, it converts the text file to a PDF using `text_to_pdf`.
+            - Any exceptions are caught, printed, and the method returns (None, None).
+        """
         try:
             prompt = PromptTemplate(
-                template=CV_GENERATOR,
+                template=COVER_LETTER_GENERATOR,
                 input_variables=["my_work_information", "job_description"],
                 ).format(job_description=job_details, my_work_information=user_data)
 
             cover_letter = self.llm.get_response(prompt=prompt)
 
-            cv_path = self.get_job_doc_path(file_type="cv")
+            cover_letter_path = self.get_job_doc_path(file_type="cover_letter")
             # Save the cover letter in a text file
-            with open(cv_path, 'w') as file:
+            with open(cover_letter_path, 'w') as file:
                 file.write(cover_letter)
 
-            print("Cover Letter generated at: ", cv_path)
+            print("Cover Letter generated at: ", cover_letter_path)
             if need_pdf:
-                text_to_pdf(cover_letter, cv_path.replace(".txt", ".pdf"))
-                print("Cover Letter PDF generated at: ", cv_path.replace(".txt", ".pdf"))
-            
-            return cover_letter, cv_path.replace(".txt", ".pdf")
+                text_to_pdf(cover_letter, cover_letter_path.replace(".txt", ".pdf"))
+                print("Cover Letter PDF generated at: ", cover_letter_path.replace(".txt", ".pdf"))
+                return cover_letter, cover_letter_path.replace(".txt", ".pdf")
+
+            return cover_letter, cover_letter_path     
+
         except Exception as e:
             print(e)
             return None, None
