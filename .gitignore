@@ -137,6 +137,7 @@ cython_debug/
 .vscode/
 input_data/
 output_files/
+dev/
 *.json
 *.txt
 *.tex
