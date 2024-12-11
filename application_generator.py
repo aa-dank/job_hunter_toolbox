@@ -278,11 +278,11 @@ class JobApplicationBuilder:
 
             # Personal Information Section
             resume_details["personal"] = { 
-                "name": user_data["name"], 
-                "phone": user_data["phone"], 
-                "email": user_data["email"],
-                "github": user_data["media"]["github"], 
-                "linkedin": user_data["media"]["linkedin"]
+                "name": user_data.get("name", ""),
+                "phone": user_data.get("phone", ""),
+                "email": user_data.get("email", ""),
+                "github": user_data.get("media", {}).get("github", ""),
+                "linkedin": user_data.get("media", {}).get("linkedin", ""),
                 }
 
             # Other Sections
@@ -298,13 +298,13 @@ class JobApplicationBuilder:
                 response = self.llm.get_response(prompt=prompt, need_json_output=True)
 
                 # Check for empty sections
-                if response is not None and isinstance(response, dict):
-                    if section in response:
-                        if response[section]:
-                            if section == "skill_section":
-                                resume_details[section] = [i for i in response['skill_section'] if len(i['skills'])]
-                            else:
-                                resume_details[section] = response[section]
+                if isinstance(response, dict):
+                    section_data = response.get(section)
+                    if section_data:
+                        if section == "skill_section":
+                            resume_details[section] = [i for i in section_data if i.get('skills')]
+                        else:
+                            resume_details[section] = section_data
 
             resume_details['keywords'] = ', '.join(job_content['keywords'])
             
@@ -412,13 +412,15 @@ class JobApplicationBuilder:
             # Ensure the output directory exists
             os.makedirs(output_dir, exist_ok=True)
 
-            # Copy the resume.cls file to the output directory
-            cls_file_path = os.path.join(os.getcwd(), 'templates', 'resume.cls')
-            if os.path.exists(cls_file_path):
-                shutil.copy(cls_file_path, output_dir)
-            else:
-                print(f"Error: resume.cls file not found at {cls_file_path}")
-                return None
+            # if the resume latex file uses the resume class...
+            if '\documentclass{resume}' in open(tex_file_path).read():
+                # Copy the resume.cls file to the output directory
+                cls_file_path = os.path.join(os.getcwd(), 'templates', 'resume.cls')
+                if os.path.exists(cls_file_path):
+                    shutil.copy(cls_file_path, output_dir)
+                else:
+                    print(f"Error: resume.cls file not found at {cls_file_path}")
+                    return None
             
             if not latex_engine:
                 latex_engine = detect_latex_engine(tex_file_path)
@@ -442,7 +444,7 @@ class JobApplicationBuilder:
                     return None
 
             # Clean up auxiliary files
-            aux_extensions = [".aux", ".log", ".out", ".toc", ".synctex.gz"]
+            aux_extensions = [".aux", ".log", ".out", ".toc", ".synctex.gz", ".cls"]
             for ext in aux_extensions:
                 aux_file = os.path.join(output_dir, filename_without_ext + ext)
                 if os.path.exists(aux_file):
