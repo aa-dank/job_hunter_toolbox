@@ -3,6 +3,7 @@ from creds import OPENAI_KEY
 from application_generator import JobApplicationBuilder
 from models import ChatGPT
 from prompts.resume_section_prompts import RESUME_WRITER_PERSONA
+from utils import LatexToolBox
 
 llm = ChatGPT(
     api_key=OPENAI_KEY,
@@ -30,7 +31,7 @@ resume_latex, resume_tex_path = generator.resume_json_to_resume_tex(resume_detai
 print(f"Please edit the resume.tex file before converting to pdf.")
 print(f"Press Enter to continue after editing the {resume_tex_path} file.")
 input()
-generator.save_latex_as_pdf(tex_file_path=resume_tex_path, destination_path="output_files")
+LatexToolBox.compile_latex_to_pdf(tex_file_path=resume_tex_path, destination_path="output_files")
 print(f"Resume PDF is saved at output_files folder.")
 
 # Create corresponding cover letter
