@@ -13,7 +13,7 @@ from generation_schemas import Achievements, Certifications, Educations, Experie
 #from zlm import AutoApplyModel
 from prompts.extraction_prompts import RESUME_DETAILS_EXTRACTOR, JOB_DETAILS_EXTRACTOR, COVER_LETTER_GENERATOR
 from prompts.resume_section_prompts import EXPERIENCE, SKILLS, PROJECTS, EDUCATIONS, CERTIFICATIONS, ACHIEVEMENTS, RESUME_WRITER_PERSONA
-from utils import LatexToolBox, text_to_pdf
+from utils import LatexToolBox  
 
 
 section_mapping_dict = {

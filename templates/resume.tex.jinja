@@ -1,144 +1,125 @@
-% Change document class to moderncv
-\documentclass[11pt, a4paper, sans]{moderncv}
-\moderncvstyle{classic} % Style options: 'casual', 'classic', 'oldstyle', 'banking'
-\moderncvcolor{blue}    % Color options: 'blue' (default), 'orange', 'green', etc.
-
-% Set up custom fonts with fontspec
-\usepackage{fontspec}
-\defaultfontfeatures{Ligatures=TeX}
-\setmainfont{Cormorant Garamond} % Body text font
-\setsansfont{Source Sans 3}    % Heading font
-
-% Adjust page geometry for refined margins
-\usepackage[scale=0.85]{geometry} % Adjust scale to refine margins
-
-% Define a custom color scheme
-\definecolor{primarycolor}{RGB}{0, 164, 218} % Muted teal or royal blue
-\colorlet{headingcolor}{primarycolor}
-
+%==== PACKAGES AND OTHER DOCUMENT CONFIGURATIONS  ====%
+\documentclass{resume} % Use the custom resume.cls style
+\usepackage[left=0.25in,top=0.25in,right=0.25in,bottom=0.25in]{geometry} % Document margins
 \usepackage[T1]{fontenc}
-% \usepackage{fontawesome} % For GitHub and LinkedIn symbols not needed with moderncv?
+\usepackage{xcolor}
+\usepackage{lmodern}
+\usepackage[T1]{fontenc}
+\usepackage{fontawesome} % For GitHub and LinkedIn symbols
 \usepackage{textcomp} % For mobile phone and email symbols
-% \usepackage{hyperref}
+% \usepackage[colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue]{hyperref}
+\usepackage{xcolor}  % Required for defining custom colors
+\usepackage{hyperref}
+% Define your custom colors
+% \definecolor{myblue}{RGB}{173, 216, 246}
+% \definecolor{myblue}{RGB}{123, 176, 206}
+\definecolor{myblue}{RGB}{0, 164, 218}
 
-% Header setup with name and contact information
-\name{\VAR{personal.name}}{} % Last name is empty as it's included in \VAR{personal.name}
-\mobile{\VAR{personal.phone}}
-\email{\VAR{personal.email}}
-\social[github]{\VAR{personal.github}}
-\social[linkedin]{\VAR{personal.linkedin}}
+% Set hyperlink colors
+\hypersetup{
+    colorlinks=true,
+    linkcolor=myblue,
+    citecolor=myblue,
+    urlcolor=myblue
+}
+
+\usepackage{hyperref}
+
+%==== Headings ====%
+\name{\VAR{personal.name}} % Your name
+\address{
+\BLOCK{ if personal.phone }{\faPhone} \href{tel:\VAR{personal.phone}}{\VAR{personal.phone.replace(' ','')}} \quad \BLOCK{ endif }
+\BLOCK{ if personal.email }{\faEnvelope} \href{mailto:\VAR{personal.email}}{\VAR{personal.email}} \quad \BLOCK{ endif }
+\BLOCK{ if personal.github }{\faGithub} \href{\VAR{personal.github}}{\VAR{personal.github}} \quad \BLOCK{ endif }
+\BLOCK{ if personal.linkedin }{\faLinkedin} \href{\VAR{personal.linkedin}}{\VAR{personal.linkedin}} \BLOCK{ endif }
+}
 
 \begin{document}
 
-% Customize section headings with subtle styling
-\renewcommand{\section}[1]{%
-  \vspace{4pt}%
-  {\color{headingcolor}\fontsize{14pt}{16pt}\selectfont\bfseries #1}%
-  \par\vspace{2pt}\hrule\vspace{6pt}%
-}
-
 %===== WORK EXPERIENCE SECTION =====%
-\BLOCK{ if work_experience and work_experience | length > 0 }
-    \section{Work Experience}
-    \BLOCK{ for exp in work_experience }
-        \cventry
-            {\BLOCK{ if exp.from_date }\VAR{exp.from_date}\BLOCK{ endif } -- \BLOCK{ if exp.to_date }\VAR{exp.to_date}\BLOCK{ endif }} % Years
-            {\VAR{exp.role}}                % Job title
-            {\VAR{exp.company}}             % Employer
-            {\VAR{exp.location}}            % Location
-            {}                              % Optional: Empty for moderncv compatibility
-            \BLOCK{ if exp.description and exp.description | length > 0 }
-            {
-                \begin{itemize}%
+\BLOCK{ if work_experience }
+    \begin{rSection}{Work Experience}
+        \BLOCK{ for exp in work_experience }
+            \begin{rSubsection}
+                {\VAR{exp.role}}{\BLOCK{ if exp.from_date }\VAR{exp.from_date} -\BLOCK{ endif } \BLOCK{ if exp.from_date }\VAR{exp.to_date}\BLOCK{ endif }}
+                \BLOCK{ if exp.link}
+                    {\normalfont{\textit{\href{\VAR{exp.link}}{\VAR{exp.company}}}}}
+                \BLOCK{else}
+                    {\normalfont{\textit{\VAR{exp.company}}}}
+                \BLOCK{ endif }
+                {\normalfont{\textit{\VAR{exp.location}}}}
                 \BLOCK{ for point in exp.description }
-                    \item \VAR{point}%
+                    \item \VAR{point}
                 \BLOCK{ endfor }
-                \end{itemize}
-            }
-            \BLOCK{ else }
-            {}
-            \BLOCK{ endif }
-    \BLOCK{ endfor }
+            \end{rSubsection}
+        \BLOCK{ endfor }
+    \end{rSection}
 \BLOCK{ endif }
 
 %==== EDUCATION SECTION ====%
-\BLOCK{ if education and education | length > 0 }
-\section{Education}
+\BLOCK{ if education }
+\begin{rSection}{Education}
     \BLOCK{ for school in education }
-        \cventry
-            {\VAR{school.from_date} -- \VAR{school.to_date}} % Years
-            {\VAR{school.degree}}                            % Degree
-            {\VAR{school.university}}                        % Institution
-            {}                                               % Location (optional)
-            \BLOCK{ if school.grade or (school.coursework and school.coursework | length > 0) }
-            {
-                \begin{itemize}%
-                \BLOCK{ if school.grade }
-                    \item GPA: \VAR{school.grade}
-                \BLOCK{ endif }
-                \BLOCK{ if school.coursework and school.coursework | length > 0 }
-                    \item Relevant Courses: \VAR{', '.join(school.coursework)}
-                \BLOCK{ endif }
-                \end{itemize}
-            }
-            \BLOCK{ else }
-            {}
+        \BLOCK{ if school.university }
+            \textbf{\VAR{school.university}} \hfill {\VAR{school.from_date} - \VAR{school.to_date}} \\
+            \BLOCK{ if school.degree }
+                {\VAR{school.degree}}
             \BLOCK{ endif }
-            {}
+            \BLOCK{ if school.grade }
+                \hfill {(GPA: \VAR{school.grade})}
+            \BLOCK{ endif } 
+            \BLOCK{ if school.coursework }
+                \textbf{\textit{Relevant Courses:}} \textit{\VAR{', '.join(school.coursework)}}
+            \BLOCK{ endif } 
+        \BLOCK{ endif } 
     \BLOCK{ endfor }
+\end{rSection}
 \BLOCK{ endif }
 
 % ==== PROJECTS SECTION =====%
-\BLOCK{ if projects and projects | length > 0 }
-    \section{Projects}
-    \BLOCK{ for project in projects }
-        \cventry
-            {\BLOCK{ if project.from_date }\VAR{project.from_date}\BLOCK{ endif } -- \BLOCK{ if project.to_date }\VAR{project.to_date}\BLOCK{ endif }} % Years
-            {
-                \BLOCK{ if project.link }
-                    \href{\VAR{project.link}}{\VAR{project.name}}
-                \BLOCK{ else }
-                    \VAR{project.name}
+\BLOCK{ if projects }
+    \begin{rSection}{Projects}
+        \BLOCK{ for project in projects}
+            \begin{rSubsection}
+                \BLOCK{ if project.link}
+                    {\href{\VAR{project.link}}{\VAR{project.name}}}
+                \BLOCK{else}
+                    {\VAR{project.name}}
                 \BLOCK{ endif }
-            }                             % Project name
-            {}                            % Employer (optional)
-            {}                            % Location (optional)
-            \BLOCK{ if project.description and project.description | length > 0 }
-            {
-                \begin{itemize}%
-                \BLOCK{ for point in project.description }
-                    \item \VAR{point}%
+                {\normalfont{\VAR{project.from_date} - \VAR{project.to_date}}}{}{}
+                \BLOCK{ for point in project.description}
+                    \item \VAR{point}
                 \BLOCK{ endfor }
-                \end{itemize}
-            }
-            \BLOCK{ else }
-            {}
-            \BLOCK{ endif }
-            {}
-    \BLOCK{ endfor }
+            \end{rSubsection}
+        \BLOCK{ endfor }
+    \end{rSection}
 \BLOCK{ endif }
 
-%==== TECHNICAL SKILLS SECTION ====%
-\BLOCK{ if skill_section and skill_section | length > 0 }
-    \section{Technical Skills}
-    \BLOCK{ for section in skill_section }
-        \cvitem{\VAR{section.name}}{\VAR{', '.join(section.skills)}}
-    \BLOCK{ endfor }
-    \BLOCK{ if certifications }
-        \cvitem{Certifications}{
-            \BLOCK{ for certification in certifications }
-                \href{\VAR{certification.link}}{\VAR{certification.name}}\\
+%==== TECHNICAL STRENGTHS SECTION ====%
+\BLOCK{ if skill_section }
+    \begin{rSection}{Technical Skills}
+        \begin{tabular}{ @{} l @{\hspace{1ex}} l }
+            \BLOCK{ for section in skill_section }
+                    \textbf{\VAR{section.name}}: \VAR{', '.join(section.skills)}\\
             \BLOCK{ endfor }
-        }
-    \BLOCK{ endif }
-\BLOCK{ endif }
+            \BLOCK{ if certifications }\textbf{Certifications:} 
+                    \BLOCK{ for certification in certifications }
+                        \href{\VAR{certification.link}}{\textbf{\VAR{certification.name}}},\\
+                    \BLOCK{ endfor }
+            \BLOCK{ endif } 
+        \end{tabular}
+    \end{rSection}
+\BLOCK{ endif } 
 
-%==== ACHIEVEMENTS SECTION ====%
-\BLOCK{ if achievements and achievements | length > 0 }
-    \section{Achievements}
-    \BLOCK{ for point in achievements }
-        \cvitem{}{ \VAR{point} }
-    \BLOCK{ endfor }
+% ACHIEVEMENTS SECTION
+\BLOCK{ if achievements }
+    \begin{rSection}{Achievements}
+        \begin{rSubsection}{}{}{}
+            \BLOCK{ for point in achievements}
+                \item \VAR{point}
+            \BLOCK{ endfor }
+        \end{rSubsection}
+    \end{rSection}
 \BLOCK{ endif }
 
 \newcommand\myfontsize{\fontsize{0.1pt}{0.1pt}\selectfont} \myfontsize \color{white}
