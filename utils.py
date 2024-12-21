@@ -70,12 +70,33 @@ class LatexToolBox:
     
     @staticmethod
     def tex_resume_from_jinja_template(jinja_env: jinja2.Environment, json_resume: dict, tex_jinja_template: str = "resume.tex.jinja"):
+        """
+        Renders LaTeX resume content using a Jinja2 template and the provided resume data.
+
+        Args:
+            jinja_env (jinja2.Environment): Environment configured for Jinja2 templates.
+            json_resume (dict): The data to populate in the template.
+            tex_jinja_template (str): The LaTeX template file name. Defaults to "resume.tex.jinja".
+
+        Returns:
+            str: Rendered LaTeX resume content as a string.
+        """
         resume_template = jinja_env.get_template(tex_jinja_template)
         resume = resume_template.render(json_resume)
         return resume
     
     @staticmethod
     def check_fonts_installed(font_names):
+        """
+        Checks if a list of font names are installed on the current system by comparing
+        them with the available fonts.
+
+        Args:
+            font_names (List[str]): Fonts to check.
+
+        Returns:
+            Dict[str, bool]: A mapping of each font name to a boolean indicating installation status.
+        """
         fm = FontManager()
         system_fonts = set(f.name for f in fm.ttflist)
         installed_fonts = {}
@@ -88,7 +109,16 @@ class LatexToolBox:
     
     @staticmethod
     def extract_tex_font_dependencies(tex_file_path):
-        """Extracts fonts and font commands from a LaTeX `.tex` file.
+        """
+        Parses a LaTeX file for font commands and returns the fonts found and
+        their associated command info, such as main, sans, or mono fonts.
+
+        Args:
+            tex_file_path (str): The path to the LaTeX file to inspect.
+
+        Returns:
+            Tuple[Set[str], List[Dict[str, str]]]: A set of unique font names and
+            a list of command dictionaries that include the type and font name.
         """
         font_commands = []
         fonts = set()
@@ -138,7 +168,7 @@ class LatexToolBox:
             with open(tex_file_path, 'r') as tex_file:
                 tex_content = tex_file.read()
             if '\\usepackage{fontspec}' in tex_content:
-                return 'xelatex'  # or 'lualatex' if preferred
+                return 'xelatex'
             else:
                 return 'pdflatex'
         
