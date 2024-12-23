@@ -139,7 +139,6 @@ input_data/
 output_files/
 dev/
 *.json
-*.txt
 *.pdf
 *.out
 *.aux

@@ -3,17 +3,16 @@ import json
 import os
 import PyPDF2
 import re
-
+import zlm
 
 from datetime import datetime
 from langchain_core.output_parsers import JsonOutputParser
 from langchain.prompts import PromptTemplate
 from models import LLMProvider
 from generation_schemas import Achievements, Certifications, Educations, Experiences, JobDetails, Projects, ResumeSchema, SkillSections
-#from zlm import AutoApplyModel
 from prompts.extraction_prompts import RESUME_DETAILS_EXTRACTOR, JOB_DETAILS_EXTRACTOR, COVER_LETTER_GENERATOR
 from prompts.resume_section_prompts import EXPERIENCE, SKILLS, PROJECTS, EDUCATIONS, CERTIFICATIONS, ACHIEVEMENTS, RESUME_WRITER_PERSONA
-from utils import LatexToolBox  
+from utils import LatexToolBox, text_to_pdf
 
 
 section_mapping_dict = {
