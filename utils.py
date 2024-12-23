@@ -69,7 +69,7 @@ class LatexToolBox:
         return data
     
     @staticmethod
-    def tex_resume_from_jinja_template(jinja_env: jinja2.Environment, json_resume: dict, tex_jinja_template: str = "resume.tex.jinja"):
+    def tex_resume_from_jinja_template(jinja_env: jinja2.Environment, json_resume: dict, tex_jinja_template: str)
         """
         Renders LaTeX resume content using a Jinja2 template and the provided resume data.
 

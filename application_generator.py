@@ -58,6 +58,7 @@ class JobApplicationBuilder:
         self.org = None
         self.job_title = None
         self.timestamp = datetime.now().strftime(r"%Y%m%d%H%M%S")
+        self.resume_template_file = "basic_template.tex"
 
     def get_job_doc_path(self, file_type: str = ""):
         """
@@ -294,8 +295,9 @@ class JobApplicationBuilder:
 
             escaped_resume_dict = LatexToolBox.escape_for_latex(resume_details)
 
-            resume_latex = LatexToolBox.tex_resume_from_jinja_template(latex_jinja_env,
-                                                                       escaped_resume_dict)
+            resume_latex = LatexToolBox.tex_resume_from_jinja_template(jinja_env=latex_jinja_env,
+                                                                       json_resume=escaped_resume_dict,
+                                                                       tex_jinja_template=self.resume_template_file)
 
             
             # Save the resume in a tex file

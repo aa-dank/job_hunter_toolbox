@@ -140,7 +140,6 @@ output_files/
 dev/
 *.json
 *.txt
-*.tex
 *.pdf
 *.out
 *.aux
