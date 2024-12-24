@@ -69,7 +69,7 @@ class LatexToolBox:
         return data
     
     @staticmethod
-    def tex_resume_from_jinja_template(jinja_env: jinja2.Environment, json_resume: dict, tex_jinja_template: str)
+    def tex_resume_from_jinja_template(jinja_env: jinja2.Environment, json_resume: dict, tex_jinja_template: str):
         """
         Renders LaTeX resume content using a Jinja2 template and the provided resume data.
 
@@ -86,21 +86,24 @@ class LatexToolBox:
         return resume
     
     @staticmethod
-    def check_fonts_installed(font_names):
+    def check_fonts_installed(fonts_to_check: Union[str, List[str]]) -> Dict[str, bool]:
         """
         Checks if a list of font names are installed on the current system by comparing
         them with the available fonts.
 
         Args:
-            font_names (List[str]): Fonts to check.
+            fonts_to_check (Union[str, List[str]]): A single font name or a list of font names to check.
 
         Returns:
             Dict[str, bool]: A mapping of each font name to a boolean indicating installation status.
         """
+        if type(fonts_to_check) == str:
+            fonts_to_check = [fonts_to_check]
+
         fm = FontManager()
         system_fonts = set(f.name for f in fm.ttflist)
         installed_fonts = {}
-        for font in font_names:
+        for font in fonts_to_check:
             if font in system_fonts:
                 installed_fonts[font] = True
             else:

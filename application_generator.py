@@ -3,13 +3,15 @@ import json
 import os
 import PyPDF2
 import re
-import zlm
+import markitdown
 
 from datetime import datetime
 from langchain_core.output_parsers import JsonOutputParser
 from langchain.prompts import PromptTemplate
+from markitdown import MarkItDown
 from models import LLMProvider
 from generation_schemas import Achievements, Certifications, Educations, Experiences, JobDetails, Projects, ResumeSchema, SkillSections
+from pathlib import Path
 from prompts.extraction_prompts import RESUME_DETAILS_EXTRACTOR, JOB_DETAILS_EXTRACTOR, COVER_LETTER_GENERATOR
 from prompts.resume_section_prompts import EXPERIENCE, SKILLS, PROJECTS, EDUCATIONS, CERTIFICATIONS, ACHIEVEMENTS, RESUME_WRITER_PERSONA
 from utils import LatexToolBox, text_to_pdf
@@ -24,7 +26,20 @@ section_mapping_dict = {
     "achievements": {"prompt":ACHIEVEMENTS, "schema": Achievements},
 }
 
-def extract_pdf_text(pdf_path: str):
+class UnsupportedFileFormatException(Exception):
+    """Custom exception for unsupported file formats."""
+    pass
+
+def extract_pdf_text(pdf_path: str): #kinda deprecated
+    """ Extracts text from a PDF file.
+
+    Args:
+        pdf_path (str): The path to the PDF file.
+    
+    Returns:
+        str: The extracted text from the PDF file.
+    """
+
     resume_text = ""
 
     with open(pdf_path, 'rb') as file:
@@ -53,6 +68,7 @@ class JobApplicationBuilder:
     ):
         self.system_prompt = system_prompt
         self.llm = llm
+        self.md_converter = MarkItDown()
         self.output_destination = output_destination
         self.org = None
         self.job_title = None
@@ -116,27 +132,30 @@ class JobApplicationBuilder:
         return filepath
     
 
-    def extract_job_content(self, job_filepath: str):
-        extension = job_filepath.split('.')[-1]
-        if not extension in ['pdf', 'json', 'txt', 'html', 'md']:
-            raise ValueError(f"Unsupported file format: {extension}\nfile_path: {job_filepath}")
-
-        if extension == 'pdf':
-            job_content_str = extract_pdf_text(job_filepath)
-        elif extension == 'json':
-            with open(job_filepath, 'r') as file:
+    def extract_job_content(self, job_content_path: str):
+        job_content_path = Path(job_content_path)
+        extension = job_content_path.suffix[1:]
+        if extension == 'json':
+            with open(job_content_path, 'r') as file:
                 job_content_str = json.load(file)
-        elif extension == 'txt':
-            with open(job_filepath, 'r') as file:
-                job_content_str = file.read()
         elif extension == 'md':
-            with open(job_filepath, 'r') as file:
+            with open(job_content_path, 'r') as file:
                 job_content_str = file.read()
-        
-        elif extension == 'html':
-            #TODO: Implement the processing of HTML files
-            #job_content_str = self.process_job_html(job_filepath)
-            raise ValueError(f"Unsupported file format: {extension}\nfile_path: {job_filepath}")
+        else:
+            try:
+                # use the markitdown library to convert the file to markdown
+                convertion_result = self.md_converter.convert(str(job_content_path))
+                job_content_str = convertion_result.text_content
+                if not job_content_str:
+                    raise Exception("Empty Markdown Convertion")
+            except Exception as e:
+                
+                # if markitdown._markitdown.UnsupportedFormatException...
+                if e.__class__.__name__ == "UnsupportedFormatException":
+                    raise UnsupportedFileFormatException(f"Unsupported file format: {extension}")
+                else:
+                    raise e
+
 
         json_parser = JsonOutputParser(pydantic_object=JobDetails)
         
@@ -160,17 +179,16 @@ class JobApplicationBuilder:
 
         return job_details, jd_path
     
-    def resume_to_json(self, pdf_path):
+    def resume_to_json(self, resume_text: str):
         """
         Converts a resume in PDF format to JSON format.
 
         Args:
-            pdf_path (str): The path to the PDF file.
+            resume_text (str): The text extracted from the resume file.
 
         Returns:
             dict: The resume data in JSON format.
         """
-        resume_text = extract_pdf_text(pdf_path)
 
         json_parser = JsonOutputParser(pydantic_object=ResumeSchema)
 
@@ -199,14 +217,27 @@ class JobApplicationBuilder:
 
         extension = os.path.splitext(user_data_path)[1]
 
-        if extension == ".pdf":
-            user_data = self.resume_to_json(user_data_path)
-        elif extension == ".json":
+        if extension == ".json":
             # user_dat from json file
             with open(user_data_path, 'r') as file:
                 user_data = json.load(file)
+        elif extension == ".md":
+            # user_data from markdown file
+            with open(user_data_path, 'r') as file:
+                user_data = file.read()
         else:
-            raise Exception("Invalid file format. Please provide a PDF, JSON file or url.")
+            try:
+                # use the markitdown library to convert the file to markdown
+                user_file_convertion = self.md_converter.convert(user_data_path)
+                user_info_md = user_file_convertion.text_content
+                if not user_info_md:
+                    raise Exception("Empty Markdown Convertion")
+                user_data = self.resume_to_json(user_info_md)
+            except Exception as e:
+                if e.__class__.__name__ == "UnsupportedFormatException":
+                    raise UnsupportedFileFormatException(f"Unsupported file format: {extension}")
+                else:
+                    raise e
         
         return user_data
     

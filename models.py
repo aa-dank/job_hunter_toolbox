@@ -7,7 +7,6 @@ from abc import ABC, abstractmethod
 from openai import OpenAI
 from langchain_community.llms.ollama import Ollama
 from langchain_core.output_parsers import JsonOutputParser
-from langchain_ollama import OllamaEmbeddings
 from google.generativeai.types.generation_types import GenerationConfig
 
 
