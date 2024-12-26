@@ -138,6 +138,7 @@ cython_debug/
 input_data/
 output_files/
 dev/
+templates/master.tex
 *.json
 *.pdf
 *.out

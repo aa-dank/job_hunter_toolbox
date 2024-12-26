@@ -192,14 +192,15 @@ class LatexToolBox:
             os.makedirs(output_dir, exist_ok=True)
 
             # if the resume latex file uses the resume class...
-            if '\documentclass{resume}' in open(tex_file_path).read():
-                # Copy the resume.cls file to the output directory
-                cls_file_path = os.path.join(os.getcwd(), 'templates', 'resume.cls')
-                if os.path.exists(cls_file_path):
-                    shutil.copy(cls_file_path, output_dir)
-                else:
-                    print(f"Error: resume.cls file not found at {cls_file_path}")
-                    return None
+            with open(tex_file_path, 'r') as tex_file:
+                if '\documentclass{resume}' in tex_file.read():
+                    # Copy the resume.cls file to the output directory
+                    cls_file_path = os.path.join(os.getcwd(), 'templates', 'resume.cls')
+                    if os.path.exists(cls_file_path):
+                        shutil.copy(cls_file_path, output_dir)
+                    else:
+                        print(f"Error: resume.cls file not found at {cls_file_path}")
+                        return None
             
             if not latex_engine:
                 latex_engine = detect_latex_engine(tex_file_path)

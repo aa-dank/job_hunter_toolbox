@@ -3,7 +3,6 @@ import json
 import os
 import PyPDF2
 import re
-import markitdown
 
 from datetime import datetime
 from langchain_core.output_parsers import JsonOutputParser
