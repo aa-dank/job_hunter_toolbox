@@ -18,8 +18,8 @@ generator = JobApplicationBuilder(
 )
 
 if __name__ == "__main__":
-    job_content_path = r""
-    resume_pdf_path = r""
+    job_content_path = r"input_data/2025 Intern - Data Scientist in San Jose R149631.pdf"
+    resume_pdf_path = r"input_data/full_resume_contents_20241124.pdf"
     
     job_details_dict, job_details_filepath = generator.extract_job_content(job_content_path)
     resume_dict = generator.user_data_extraction(user_data_path=resume_pdf_path)
@@ -39,6 +39,13 @@ if __name__ == "__main__":
     print('Edit the resume latex and cover letter text files as needed. Hit enter when you are ready to turn them into pdf files.')
     input()
 
+    resume_tex_fonts = LatexToolBox.extract_tex_font_dependencies(resume_tex_path)
+    font_statuses = LatexToolBox.check_fonts_installed(resume_tex_fonts)
+    if not all([v for v in font_statuses.values()]):
+        for k, v in font_statuses.items():
+            if not v:
+                print(f"{k} not installed")
+
     print("Compiling LaTeX to PDF...")
     LatexToolBox.compile_latex_to_pdf(tex_file_path=resume_tex_path)
     print(f"Resume PDF is saved at {resume_tex_path.replace('.tex','.pdf')}")
@@ -46,13 +53,6 @@ if __name__ == "__main__":
     cover_letter_pdf_path = cover_letter_txt_path.replace('.txt', '.pdf')
     cover_letter_pdf_path = text_to_pdf(cover_letter, cover_letter_pdf_path)
     print(f"Cover Letter PDF is saved at {cover_letter_pdf_path}")
-
-    font_statuses = LatexToolBox.check_fonts_installed(resume_tex_path)
-    if not all(font_statuses.values()):
-        for k, v in font_statuses.items():
-            if not v:
-                print(f"{k} not installed")
-    # ...existing code...
 
 
 
