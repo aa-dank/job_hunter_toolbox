@@ -25,6 +25,12 @@ create a compelling, concise cover letter that aligns my resume/work information
 {my_work_information}
 </my_work_information>
 
+{% if application_specific_instructions %}
+<application_specific_instructions>
+{application_specific_instructions}
+</application_specific_instructions>
+
+{% endif %}
 <guidelines>
 - Highlight my unique qualifications for this specific role and company culture in a concise bulleted list for easy readability.
 - Focus on the value I can bring to the employer, including 1-2 specific examples of relevant achievements.

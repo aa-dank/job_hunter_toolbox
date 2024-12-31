@@ -339,7 +339,7 @@ class JobApplicationBuilder:
             print(e)
             return None, None
 
-    def generate_cover_letter(self, job_details: dict, user_data: dict, need_pdf: bool = True):
+    def generate_cover_letter(self, job_details: dict, user_data: dict, custom_instructions: str = "", need_pdf: bool = True):
         """
         Generates a tailored cover letter based on job details and user data.
 
@@ -352,6 +352,7 @@ class JobApplicationBuilder:
             user_data (dict): A dictionary containing the user's work information and personal details.
             need_pdf (bool, optional): If True, converts the generated cover letter to a PDF file.
                 Defaults to True.
+            custom_instructions (str, optional): Additional instructions added to the prompt for generating the cover letter.
 
         Returns:
             tuple:
@@ -367,8 +368,10 @@ class JobApplicationBuilder:
         try:
             prompt = PromptTemplate(
                 template=COVER_LETTER_GENERATOR,
-                input_variables=["my_work_information", "job_description"],
-                ).format(job_description=job_details, my_work_information=user_data)
+                input_variables=["my_work_information", "job_description", "application_specific_instructions"],
+                ).format(job_description=job_details,
+                         my_work_information=user_data,
+                         application_specific_instructions=custom_instructions)
 
             cover_letter = self.llm.get_response(prompt=prompt)
 
