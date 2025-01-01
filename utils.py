@@ -132,9 +132,11 @@ class LatexToolBox:
 
         with open(tex_file_path, 'r', encoding='utf-8') as f:
             content = f.read()
+            # Remove everything after unescaped '%' from each line to skip comments
+            content_no_comments = re.sub(r'(?<!\\)%.*', '', content)
 
             # Find fontspec font commands
-            matches = fontspec_regex.findall(content)
+            matches = fontspec_regex.findall(content_no_comments)
             for match in matches:
                 font_type, font_name = match
                 font_name = font_name.strip()
