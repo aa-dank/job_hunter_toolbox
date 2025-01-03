@@ -368,10 +368,14 @@ class JobApplicationBuilder:
         try:
             prompt = PromptTemplate(
                 template=COVER_LETTER_GENERATOR,
-                input_variables=["my_work_information", "job_description", "application_specific_instructions"],
-                ).format(job_description=job_details,
-                         my_work_information=user_data,
-                         application_specific_instructions=custom_instructions)
+                template_format="jinja2",
+                input_variables=["job_description", "my_work_information", "application_specific_instructions"], 
+                validate_template=False
+            ).format(
+                job_description=job_details,
+                my_work_information=user_data,
+                application_specific_instructions=custom_instructions or ""
+            )
 
             cover_letter = self.llm.get_response(prompt=prompt)
 

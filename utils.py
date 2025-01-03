@@ -7,19 +7,29 @@ from fpdf import FPDF
 from matplotlib.font_manager import FontManager
 from typing import Union, Any, Dict, List
 
-def text_to_pdf(text: str, file_path: str):
-    """Converts the given text to a PDF and saves it to the specified file path.
 
-    Args:
-        text (str): The text to be converted to PDF.
-        file_path (str): The file path where the PDF will be saved.
-    """
+def text_to_pdf(text: str, file_path: str):
+    # Initialize PDF with default page setup
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_font("Arial", size=11)
-    # Encode the text explicitly using 'latin-1' encoding
-    encoded_text = text.encode('utf-8').decode('latin-1')
-    pdf.multi_cell(0, 5, txt=encoded_text)
+
+    # Font selection cascade
+    fonts_to_try = [
+        ('/System/Library/Fonts/Supplemental/DejaVuSans.ttf', 'DejaVu'),
+        ('/Library/Fonts/Arial Unicode.ttf', 'Arial Unicode'),
+        (None, 'Helvetica')  # Built-in fallback
+    ]
+
+    # Try fonts in order until one works
+    for font_path, font_name in fonts_to_try:
+        if not font_path or os.path.exists(font_path):
+            if font_path:
+                pdf.add_font(font_name, '', font_path, uni=True)
+            pdf.set_font(font_name, size=11)
+            break
+
+    # Write text and save
+    pdf.multi_cell(0, 5, txt=text)
     pdf.output(file_path)
     return file_path
 

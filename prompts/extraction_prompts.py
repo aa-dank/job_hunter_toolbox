@@ -18,16 +18,16 @@ create a compelling, concise cover letter that aligns my resume/work information
 </task>
 
 <job_description>
-{job_description}
+{{ job_description }}
 </job_description>
 
 <my_work_information>
-{my_work_information}
+{{ my_work_information }}
 </my_work_information>
 
 {% if application_specific_instructions %}
 <application_specific_instructions>
-{application_specific_instructions}
+{{ application_specific_instructions }}
 </application_specific_instructions>
 
 {% endif %}
