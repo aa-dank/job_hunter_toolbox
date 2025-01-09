@@ -161,7 +161,9 @@ class JobApplicationBuilder:
         prompt = PromptTemplate(
             template=JOB_DETAILS_EXTRACTOR,
             input_variables=["job_description"],
-            partial_variables={"format_instructions": json_parser.get_format_instructions()}
+            partial_variables={"format_instructions": json_parser.get_format_instructions()},
+            template_format="jinja2",
+            validate_template=False
             ).format(job_description=job_content_str)
 
         job_details = self.llm.get_response(prompt=prompt, need_json_output=True)
@@ -194,8 +196,10 @@ class JobApplicationBuilder:
         prompt = PromptTemplate(
             template=RESUME_DETAILS_EXTRACTOR,
             input_variables=["resume_text"],
-            partial_variables={"format_instructions": json_parser.get_format_instructions()}
-            ).format(resume_text=resume_text)
+            partial_variables={"format_instructions": json_parser.get_format_instructions()},
+            template_format="jinja2",
+            validate_template=False
+        ).format(resume_text=resume_text)
 
         resume_json = self.llm.get_response(prompt=prompt, need_json_output=True)
         return resume_json
@@ -265,8 +269,11 @@ class JobApplicationBuilder:
                 
                 prompt = PromptTemplate(
                     template=section_mapping_dict[section]["prompt"],
-                    partial_variables={"format_instructions": json_parser.get_format_instructions()}
-                    ).format(section_data = json.dumps(user_data[section]), job_description = json.dumps(job_content))
+                    partial_variables={"format_instructions": json_parser.get_format_instructions()},
+                    template_format="jinja2",
+                    validate_template=False
+                ).format(section_data = json.dumps(user_data[section]),
+                         job_description = json.dumps(job_content))
 
                 response = self.llm.get_response(prompt=prompt, need_json_output=True)
 

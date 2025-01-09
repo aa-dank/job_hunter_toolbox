@@ -55,11 +55,11 @@ Instructions:
   4.2. Proofreading: Ensure impeccable spelling and grammar.
 
 <achievements>
-{section_data}
+{{ section_data }}
 </achievements>
 
 <job_description>
-{job_description}
+{{ job_description }}
 </job_description>
 
 <example>
@@ -71,7 +71,7 @@ Instructions:
   ]
 </example>
 
-{format_instructions}
+{{ format_instructions }}
 """
 
 CERTIFICATIONS = """You are going to write a JSON resume section of "Certifications" for an applicant applying for job posts.
@@ -86,30 +86,30 @@ Instructions:
 2. Proofreading: Ensure impeccable spelling and grammar.
 
 <CERTIFICATIONS>
-{section_data}
+{{ section_data }}
 </CERTIFICATIONS>
 
 <job_description>
-{job_description}
+{{ job_description }}
 </job_description>
 
-<example>
+<examples>
   "certifications": [
-    {{
+    {
       "name": "Deep Learning Specialization",
       "by": "DeepLearning.AI, Coursera Inc.",
       "link": "https://www.coursera.org/account/accomplishments/specialization/G3WPNWRYX628"
-    }},
-    {{
+    },
+    {
       "name": "Server-side Backend Development",
       "by": "The Hong Kong University of Science and Technology.",
       "link": "https://www.coursera.org/account/accomplishments/verify/TYMQX23D4HRQ"
-    }}
+    }
     ...
   ],
-</example>
+</examples>
 
-{format_instructions}
+{{ format_instructions }}
 """
 
 EDUCATIONS = """You are going to write a JSON resume section of "Education" for an applicant applying for job posts.
@@ -127,16 +127,16 @@ Instructions:
 - Prefer active voice over passive voice.
 
 <Education>
-{section_data}
+{{ section_data }}
 </Education>
 
 <job_description>
-{job_description}
+{{ job_description }}
 </job_description>
 
 <example>
 "education": [
-  {{
+  {
     "degree": "Masters of Science - Computer Science (Thesis)",
     "university": "Arizona State University, Tempe, USA",
     "from_date": "Aug 2023",
@@ -148,12 +148,12 @@ Instructions:
       "Social Media Mining",
       [and So on ...]
     ]
-  }}
+  }
   [and So on ...]
 ],
 </example>
 
-{format_instructions}
+{{ format_instructions }}
 """
 
 
@@ -178,16 +178,16 @@ Instructions:
   3.3. Proofreading: Ensure impeccable spelling and grammar.
 
 <PROJECTS>
-{section_data}
+{{ section_data }}
 </PROJECTS>
 
 <job_description>
-{job_description}
+{{ job_description }}
 </job_description>
 
 <example>
 "projects": [
-    {{
+    {
       "name": "Search Engine for All file types - Sunhack Hackathon - Meta & Amazon Sponsored",
       "type": "Hackathon",
       "link": "https://devpost.com/software/team-soul-1fjgwo",
@@ -198,12 +198,12 @@ Instructions:
         "Devised a TabNet Classifier Model having 98.7% accuracy in detecting forest fire through IoT sensor data, deployed on AWS and edge devices 'Silvanet Wildfire Sensors' using technologies TinyML, Docker, Redis, and celery.",
         [and So on ...]
       ]
-    }}
+    }
     [and So on ...]
   ]
   </example>
   
-  {format_instructions}
+  {{ format_instructions }}
   """
 
 SKILLS="""You are going to write a JSON resume section of "Skills" for an applicant applying for job posts.
@@ -218,28 +218,28 @@ Instructions:
 - Proofreading: Ensure impeccable spelling and grammar.
 
 <SKILL_SECTION>
-{section_data}
+{{ section_data }}
 </SKILL_SECTION>
 
 <job_description>
-{job_description}
+{{ job_description }}
 </job_description>
 
 <example>
 "skill_section": [
-    {{
+    {
       "name": "Programming Languages",
       "skills": ["Python", "JavaScript", "C#", and so on ...]
-    }},
-    {{
+    },
+    {
       "name": "Cloud and DevOps",
       "skills": [ "Azure", "AWS", and so on ... ]
-    }},
+    },
     and so on ...
   ]
 </example>
   
-  {format_instructions}
+  {{ format_instructions }}
   """
 
 
@@ -265,16 +265,16 @@ Instructions:
   3.3. Proofreading: Ensure impeccable spelling and grammar.
 
 <work_experience>
-{section_data}
+{{ section_data }}
 </work_experience>
 
 <job_description>
-{job_description}
+{{ job_description }}
 </job_description>
 
 <example>
 "work_experience": [
-    {{
+    {
       "role": "Software Engineer",
       "company": "Winjit Technologies",
       "location": "Pune, India"
@@ -285,8 +285,8 @@ Instructions:
         "Initiated and Designed a standardized solution for dynamic forms generation, with customizable CSS capabilities feature, which reduces development time by 8x; Led and collaborated with a 12 member cross-functional team. (Idea Generation)"  
         and so on ...
       ]
-    }},
-    {{
+    },
+    {
       "role": "Research Intern",
       "company": "IMATMI, Robbinsville",
       "location": "New Jersey (Remote)"
@@ -297,9 +297,9 @@ Instructions:
         "Created 'goals and action plan generation' tool for employees, considering their weaknesses to facilitate professional growth.",
         and so on ...
       ]
-    }}
+    }
   ],
 </example>
 
-{format_instructions}
+{{ format_instructions }}
 """
