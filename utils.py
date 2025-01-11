@@ -209,7 +209,9 @@ class LatexToolBox:
                     # Copy the resume.cls file to the output directory
                     cls_file_path = os.path.join(os.getcwd(), 'templates', 'resume.cls')
                     if os.path.exists(cls_file_path):
-                        shutil.copy(cls_file_path, output_dir)
+                        # if the resume.cls file is not already in the output directory, copy it
+                        if not os.path.exists(os.path.join(output_dir, "resume.cls")):
+                            shutil.copy(cls_file_path, output_dir)
                     else:
                         print(f"Error: resume.cls file not found at {cls_file_path}")
                         return None
