@@ -42,9 +42,10 @@ Goal: Create documents that not only pass ATS screenings but also compellingly d
 ACHIEVEMENTS ="""You are going to write a JSON resume section of "Achievements" for an applicant applying for job posts.
 
 Step to follow:
-1. Analyze my achievements details to match job requirements.
-2. Create a JSON resume section that highlights strongest matches
-3. Optimize JSON section for clarity and relevance to the job description.
+1. If no achievements are relevant or exist, return nothing. Otherwise, proceed to step 2.
+2. Analyze my achievements details to determine how they might the match job requirements.
+3. Create a JSON resume section that highlights strongest matches
+4. Optimize JSON section for clarity and relevance to the job description.
 
 Instructions:
 1. Focus: Craft relevant achievements aligned with the job description.
@@ -80,6 +81,7 @@ Step to follow:
 1. Analyze my certification details to match job requirements.
 2. Create a JSON resume section that highlights strongest matches
 3. Optimize JSON section for clarity and relevance to the job description.
+4. Return nothing if there are no certifications. Do not include certifications that are not relevant to the job or not supported in the <Certifications> section.
 
 Instructions:
 1. Focus: Include relevant certifications aligned with the job description.
@@ -120,7 +122,7 @@ Step to follow:
 3. Optimize JSON section for clarity and relevance to the job description.
 
 Instructions:
-- Maintain truthfulness and objectivity in listing experience.
+- Maintain truthfulness and objectivity in listing experience; make sure everything in education section is evidenced from education details.
 - Prioritize specificity - with respect to job - over generality.
 - Proofread and Correct spelling and grammar errors.
 - Aim for clear expression over impressiveness.
@@ -212,6 +214,7 @@ Step to follow:
 1. Analyze my Skills details to match job requirements.
 2. Create a JSON resume section that highlights strongest matches.
 3. Optimize JSON section for clarity and relevance to the job description.
+4. Ensure that all of the JSON content is supported by content from the <SKILL_SECTION> section.
 
 Instructions:
 - Specificity: Prioritize relevance to the specific job over general achievements.
@@ -249,6 +252,7 @@ Step to follow:
 1. Analyze my Work details to match job requirements.
 2. Create a JSON resume section that highlights strongest matches
 3. Optimize JSON section for clarity and relevance to the job description.
+4. Ensure that all of the JSON content is supported by content from the <work_experience> section.
 
 Instructions:
 1. Focus: Craft three highly relevant work experiences aligned with the job description.
