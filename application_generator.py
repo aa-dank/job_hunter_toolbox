@@ -63,8 +63,11 @@ class JobApplicationBuilder:
  
     def __init__(
         self, llm: LLMProvider, output_destination: str = "output_files",
-        system_prompt: str = RESUME_WRITER_PERSONA
-    ):
+        system_prompt: str = RESUME_WRITER_PERSONA, resume_template_file: str = "basic_template.tex"
+        ):
+        """
+        Initializes the JobApplicationBuilder class.
+        """
         self.system_prompt = system_prompt
         self.llm = llm
         self.md_converter = MarkItDown()
@@ -72,7 +75,7 @@ class JobApplicationBuilder:
         self.org = None
         self.job_title = None
         self.timestamp = datetime.now().strftime(r"%Y%m%d%H%M%S")
-        self.resume_template_file = "basic_template.tex"
+        self.resume_template_file = resume_template_file
 
     def get_job_doc_path(self, file_type: str = ""):
         """
@@ -107,7 +110,11 @@ class JobApplicationBuilder:
         doc_dir = os.path.join(self.output_destination, company_name, f"{job_title}_{timestamp}")
         os.makedirs(doc_dir, exist_ok=True)
 
-        if file_type == "jd":
+
+        if not file_type or (file_type not in ["jd", "resume_json", "resume", "cover_letter"]):
+            return doc_dir
+        
+        elif file_type == "jd":
             filename_base = "JD.json"
         elif file_type == "resume_json":
             filename_base = "resume.json"
@@ -115,8 +122,6 @@ class JobApplicationBuilder:
             filename_base = "resume.tex"
         elif file_type == "cover_letter":
             filename_base = "cover_letter.txt"
-        else:
-            filename_base = ""
 
         filepath = os.path.join(doc_dir, filename_base)
 
