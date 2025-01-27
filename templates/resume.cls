@@ -1,12 +1,18 @@
 \ProvidesClass{resume}[2010/07/10 v0.9 Resume class]
+\LoadClass[10pt,letterpaper]{article}
 
-\LoadClass[10pt]{article} % Font size and paper type
-
+\RequirePackage{multirow}
+\RequirePackage{multicol}
+\RequirePackage{needspace}
 \usepackage[parfill]{parskip} % Remove paragraph indentation
 \usepackage{array} % Required for boldface (\bf and \bfseries) tabular columns
 \usepackage{ifthen} % Required for ifthenelse statements
 
-\pagestyle{empty} % Suppress page numbers
+\setlength{\textheight}{9in}
+\setlength{\textwidth}{7in}
+
+
+\pagestyle{plain} % Suppress page numbers
 
 %====
 %	HEADINGS COMMANDS: Commands for printing name and address
@@ -72,16 +78,16 @@
 %====
 
 % Defines the rSection environment for the large sections within the CV
-\newenvironment{rSection}[1]{ % 1 input argument - section name
-  \MakeUppercase{\textbf{#1}} % Section title
+\newenvironment{rSection}[1]{
+  % \needspace{2\baselineskip}
+  % \needspace{2\baselineskip}
+  \vspace{0.1in}
+  \MakeUppercase{\textbf{#1}}
   \sectionlineskip
-  \hrule % Horizontal line
-  \begin{list}{}{ % List for each individual item in the section
-    \setlength{\leftmargin}{1.5em} % Margin within the section
-  }
-  \item[]
+  \hrule
+  % Instead of a single \begin{list}...\item[]..., just let LaTeX flow normally
 }{
-  \end{list}
+  \vspace{0.5em}
 }
 
 %====
@@ -116,3 +122,4 @@
 \def\sectionlineskip{\medskip} % The space above the horizontal line for each section 
 \def\nameskip{\bigskip} % The space after your name at the top
 \def\sectionskip{\medskip} % The space after the heading section
+\def\namefont{\huge\bfseries} % Define the default name font

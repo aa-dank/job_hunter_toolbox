@@ -156,7 +156,7 @@ class LatexToolBox:
         return fonts, font_commands
     
     @staticmethod
-    def compile_latex_to_pdf(tex_file_path: str, destination_path: str = None, latex_engine: str = None):
+    def compile_latex_to_pdf(tex_file_path: str, destination_path: str = None, cls_file_path: str = None, latex_engine: str = None):
         """
         Compiles a LaTeX `.tex` file into a PDF using a specified LaTeX engine and saves it to a specified directory.
 
@@ -206,8 +206,9 @@ class LatexToolBox:
             # if the resume latex file uses the resume class...
             with open(tex_file_path, 'r') as tex_file:
                 if '\documentclass{resume}' in tex_file.read():
+                    if not cls_file_path:
+                        cls_file_path = os.path.join(os.getcwd(), 'templates', 'resume.cls')
                     # Copy the resume.cls file to the output directory
-                    cls_file_path = os.path.join(os.getcwd(), 'templates', 'resume.cls')
                     if os.path.exists(cls_file_path):
                         # if the resume.cls file is not already in the output directory, copy it
                         if not os.path.exists(os.path.join(output_dir, "resume.cls")):

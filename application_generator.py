@@ -4,6 +4,7 @@ import os
 import PyPDF2
 import re
 
+from dataclasses import dataclass
 from datetime import datetime
 from langchain_core.output_parsers import JsonOutputParser
 from langchain.prompts import PromptTemplate
@@ -16,7 +17,7 @@ from prompts.resume_section_prompts import EXPERIENCE, SKILLS, PROJECTS, EDUCATI
 from utils import LatexToolBox, text_to_pdf
 
 
-section_mapping_dict = {
+resume_section_prompt_map = {
     "work_experience": {"prompt":EXPERIENCE, "schema": Experiences},
     "skill_section": {"prompt":SKILLS, "schema": SkillSections},
     "projects": {"prompt":PROJECTS, "schema": Projects},
@@ -59,23 +60,33 @@ def extract_pdf_text(pdf_path: str): #kinda deprecated
         return resume_text
 
 
-class JobApplicationBuilder:
- 
-    def __init__(
-        self, llm: LLMProvider, output_destination: str = "output_files",
-        system_prompt: str = RESUME_WRITER_PERSONA, resume_template_file: str = "basic_template.tex"
-        ):
-        """
-        Initializes the JobApplicationBuilder class.
-        """
-        self.system_prompt = system_prompt
-        self.llm = llm
-        self.md_converter = MarkItDown()
-        self.output_destination = output_destination
-        self.org = None
-        self.job_title = None
-        self.timestamp = datetime.now().strftime(r"%Y%m%d%H%M%S")
-        self.resume_template_file = resume_template_file
+@dataclass
+class JobApplicationBuild:
+    """
+    Dataclass for setting up the job application process.
+
+    Attributes:
+        resume_tex_template_path (str): Path to the LaTeX template used for resume generation.
+        resume_cls_path (str): Path to the LaTeX class file for the resume.
+        output_destination (str): Directory for storing output files.
+        org (str): Name of the organization for which the job is applied.
+        job_title (str): Parsed or assigned job title.
+        timestamp (str): Timestamp used to distinguish output files.
+        job_details (dict): Information extracted from the job content file.
+        resume_details (dict): Information extracted from the user's resume data.
+        job_content_path (str): File path to the job description or listing.
+        resume_content_path (str): File path to the user's resume or data.
+    """
+    resume_tex_template_path: str = "basic_template.tex"
+    resume_cls_path: str = "resume.cls"
+    output_destination: str = "output_files"
+    org: str = None
+    job_title: str = None
+    timestamp: str = datetime.now().strftime(r"%Y%m%d%H%M%S")
+    job_details: dict = None
+    resume_details: dict = None
+    job_content_path: str = None
+    resume_content_path: str = None
 
     def get_job_doc_path(self, file_type: str = ""):
         """
@@ -134,9 +145,22 @@ class JobApplicationBuilder:
             counter += 1
 
         return filepath
-    
+
+
+class JobApplicationBuilder:
+ 
+    def __init__(
+        self, llm: LLMProvider, build: JobApplicationBuild = None
+        ):
+        """
+        Initializes the JobApplicationBuilder class.
+        """
+        self.llm = llm
+        self.md_converter = MarkItDown()
+        self.build = build if build else JobApplicationBuild()
 
     def extract_job_content(self, job_content_path: str):
+        self.build.job_content_path = job_content_path
         job_content_path = Path(job_content_path)
         extension = job_content_path.suffix[1:]
         if extension == 'json':
@@ -172,10 +196,10 @@ class JobApplicationBuilder:
             ).format(job_description=job_content_str)
 
         job_details = self.llm.get_response(prompt=prompt, need_json_output=True)
-        self.org = job_details["company_name"]
-        self.job_title = job_details["job_title"]
+        self.build.org = job_details["company_name"]
+        self.build.job_title = job_details["job_title"]
 
-        jd_path = self.get_job_doc_path(file_type="jd")
+        jd_path = self.build.get_job_doc_path(file_type="jd")
 
         # Save the job details in a JSON file
         with open(jd_path, 'w') as file:
@@ -211,6 +235,7 @@ class JobApplicationBuilder:
 
 
     def user_data_extraction(self, user_data_path: str):
+        self.build.resume_content_path = user_data_path
         """
         Extracts user data from the given file path.
 
@@ -270,10 +295,10 @@ class JobApplicationBuilder:
             # Other Sections
             for section in ['work_experience', 'projects', 'skill_section', 'education', 'certifications', 'achievements']:
                 print(f"Processing Resume's {section.upper()} Section...")
-                json_parser = JsonOutputParser(pydantic_object=section_mapping_dict[section]["schema"])
+                json_parser = JsonOutputParser(pydantic_object=resume_section_prompt_map[section]["schema"])
                 
                 prompt = PromptTemplate(
-                    template=section_mapping_dict[section]["prompt"],
+                    template=resume_section_prompt_map[section]["prompt"],
                     partial_variables={"format_instructions": json_parser.get_format_instructions()},
                     template_format="jinja2",
                     validate_template=False
@@ -293,7 +318,7 @@ class JobApplicationBuilder:
 
             resume_details['keywords'] = ', '.join(job_content['keywords'])
             
-            resume_path = self.get_job_doc_path(file_type="resume_json")
+            resume_path = self.build.get_job_doc_path(file_type="resume_json")
 
             # Save the resume details in a JSON file
             with open(resume_path, 'w') as file:
@@ -318,7 +343,7 @@ class JobApplicationBuilder:
 
 
             templates_path = os.path.join(os.getcwd(), 'templates')
-            output_path = self.get_job_doc_path(file_type="resume")
+            output_path = self.build.get_job_doc_path(file_type="resume")
 
             latex_jinja_env = jinja2.Environment(
                 block_start_string="\BLOCK{",
@@ -338,7 +363,7 @@ class JobApplicationBuilder:
 
             resume_latex = LatexToolBox.tex_resume_from_jinja_template(jinja_env=latex_jinja_env,
                                                                        json_resume=escaped_resume_dict,
-                                                                       tex_jinja_template=self.resume_template_file)
+                                                                       tex_jinja_template=self.build.resume_tex_template_path)
 
             
             # Save the resume in a tex file
@@ -391,7 +416,7 @@ class JobApplicationBuilder:
 
             cover_letter = self.llm.get_response(prompt=prompt)
 
-            cover_letter_path = self.get_job_doc_path(file_type="cover_letter")
+            cover_letter_path = self.build.get_job_doc_path(file_type="cover_letter")
             # Save the cover letter in a text file
             with open(cover_letter_path, 'w') as file:
                 file.write(cover_letter)

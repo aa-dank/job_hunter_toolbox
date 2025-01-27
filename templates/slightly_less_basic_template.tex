@@ -1,43 +1,36 @@
 %==== PACKAGES AND OTHER DOCUMENT CONFIGURATIONS  ====%
-\documentclass{resume} % Use the custom resume.cls style
-\usepackage[left=0.25in,top=0.25in,right=0.25in,bottom=0.25in]{geometry} % Document margins
+\documentclass{resume}
+
+% Document settings
+\usepackage[left=0.25in,top=0.25in,right=0.25in,bottom=0.25in]{geometry}
+
+% Font and text packages (remove duplicates)
 \usepackage[T1]{fontenc}
-\usepackage{xcolor}
 \usepackage{lmodern}
-\usepackage[T1]{fontenc}
-\usepackage{fontawesome} % For GitHub and LinkedIn symbols
-\usepackage{textcomp} % For mobile phone and email symbols
-% \usepackage[colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue]{hyperref}
-\usepackage{xcolor}  % Required for defining custom colors
+\usepackage{textcomp}
+\usepackage{fontawesome}
+
+% Color and hyperlink setup
+\usepackage{xcolor}
 \usepackage{hyperref}
-% Define your custom colors
-% \definecolor{myblue}{RGB}{173, 216, 246}
-% \definecolor{myblue}{RGB}{123, 176, 206}
+
+% Define custom colors
 \definecolor{myblue}{RGB}{0, 164, 218}
 
-% Set hyperlink colors
+% Hyperlink configuration
 \hypersetup{
     colorlinks=true,
     linkcolor=myblue,
-    citecolor=myblue,
+    citecolor=myblue,   
     urlcolor=myblue
 }
 
-\usepackage{hyperref}
-
+% Document formatting
 \linespread{1.1}
 \renewcommand{\labelitemi}{\textcolor{myblue}{$\bullet$}}
 \setlength{\parskip}{0.5em}
 
-%==== Headings ====%
-\name{\VAR{personal.name}} % Your name
-\address{
-\BLOCK{ if personal.phone }{\faPhone} \href{tel:\VAR{personal.phone}}{\VAR{personal.phone.replace(' ','')}} \quad \BLOCK{ endif }
-\BLOCK{ if personal.email }{\faEnvelope} \href{mailto:\VAR{personal.email}}{\VAR{personal.email}} \quad \BLOCK{ endif }
-\BLOCK{ if personal.github }{\faGithub} \href{\VAR{personal.github}}{\VAR{personal.github}} \quad \BLOCK{ endif }
-\BLOCK{ if personal.linkedin }{\faLinkedin} \href{\VAR{personal.linkedin}}{\VAR{personal.linkedin}} \BLOCK{ endif }
-}
-
+% Start document content
 \begin{document}
 
 %===== WORK EXPERIENCE SECTION =====%

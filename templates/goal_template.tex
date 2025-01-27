@@ -1,0 +1,191 @@
+%======================================================
+%   A VISUALLY APPEALING, PROFESSIONAL LATEX RÉSUMÉ
+%   Optimized for Data Science positions.
+%------------------------------------------------------
+%   RECOMMENDED COMPILATION: xelatex goal_template.tex
+%======================================================
+
+\documentclass[10pt]{resume} % Use your custom resume.cls style
+
+%------------------------------------------------------
+%   PACKAGES & GRAPHICAL ELEMENTS
+%------------------------------------------------------
+\usepackage[margin=0.75in]{geometry}   % Refine page margins
+\usepackage{fontspec}                  % Allows use of custom TrueType/OpenType fonts
+\usepackage{xcolor}                    % Color accents
+\usepackage{hyperref}                  % Clickable links
+\usepackage{faicons}                   % Optional: for subtle icons
+\usepackage{titlesec}                  % Fine-tune section headings
+\usepackage{paracol}                   % (Optional) For multi-column layouts
+
+%------------------------------------------------------
+%   CUSTOM FONTS & COLOR
+%------------------------------------------------------
+% Change these fonts to your preference; ensure they're installed or included.
+% For example, you could install Source Sans Pro (for headings) & Cormorant Garamond (for body).
+\setmainfont{Cormorant Garamond}
+\newfontfamily\headingfont{Source Sans Pro Semibold} 
+\colorlet{highlight}{teal} % You can adjust to your preferred accent color
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=highlight,
+    citecolor=highlight,
+    urlcolor=highlight
+}
+
+%------------------------------------------------------
+%   TWEAK BASIC SPACING & HEADINGS
+%------------------------------------------------------
+\setlength{\parindent}{0pt}
+\linespread{1.1}
+
+% Global redefinition of bullet color
+\renewcommand{\labelitemi}{\textcolor{highlight}{$\bullet$}}
+
+% Make section headings visually distinct
+\titleformat{\section}{\large\headingfont\uppercase}{\thesection}{1em}{}
+\titlespacing{\section}{0pt}{5pt}{5pt}
+
+% Make name bigger and bolder
+\renewcommand{\namefont}{\Huge\headingfont}
+
+% A subtle horizontal rule with vertical spacing for sections
+\newcommand{\sectionrule}{
+  \vspace{-0.5em}
+  \hrule height 0.5pt
+  \vspace{0.6em}
+}
+
+%------------------------------------------------------
+%   HEADER: NAME & CONTACT
+%   (Uses Jinja2 placeholders for dynamic data)
+%------------------------------------------------------
+\name{\VAR{personal.name}} % Your name
+
+\address{
+\BLOCK{ if personal.phone }{\faPhone\;} \href{tel:\VAR{personal.phone}}{\VAR{personal.phone.replace(' ','')}} \quad \BLOCK{ endif }
+\BLOCK{ if personal.email }{\faEnvelope\;} \href{mailto:\VAR{personal.email}}{\VAR{personal.email}} \quad \BLOCK{ endif }
+\BLOCK{ if personal.github }{\faGithub\;} \href{\VAR{personal.github}}{\VAR{personal.github}} \quad \BLOCK{ endif }
+\BLOCK{ if personal.linkedin }{\faLinkedin\;} \href{\VAR{personal.linkedin}}{\VAR{personal.linkedin}} \BLOCK{ endif }
+}
+
+\vspace{0.5em}
+\hrule
+\vspace{1em}
+
+\begin{document}
+
+%======================================================
+%   WORK EXPERIENCE
+%======================================================
+\BLOCK{ if work_experience }
+\section*{Work Experience}
+\sectionrule
+\BLOCK{ for exp in work_experience }
+\begin{rSubsection}
+  {\VAR{exp.role}}
+  {\BLOCK{ if exp.from_date }\VAR{exp.from_date} -- \VAR{exp.to_date}\BLOCK{ endif }}
+  \BLOCK{ if exp.link}{\textit{\href{\VAR{exp.link}}{\VAR{exp.company}}}}%
+  \BLOCK{else}{\textit{\VAR{exp.company}}}\BLOCK{ endif }
+  {\textit{\VAR{exp.location}}}
+  \BLOCK{ for point in exp.description }
+    \item \VAR{point}
+  \BLOCK{ endfor }
+\end{rSubsection}
+\BLOCK{ endfor }
+\BLOCK{ endif }
+
+%======================================================
+%   EDUCATION
+%======================================================
+\BLOCK{ if education }
+\section*{Education}
+\sectionrule
+\BLOCK{ for school in education }
+\BLOCK{ if school.university }
+{\bf \VAR{school.university}} \hfill {\VAR{school.from_date} -- \VAR{school.to_date}} \\
+\BLOCK{ if school.degree }
+  {\VAR{school.degree}}
+\BLOCK{ endif }
+\BLOCK{ if school.grade }
+  \hfill (GPA: \VAR{school.grade})
+\BLOCK{ endif }
+\BLOCK{ if school.coursework }
+  \\\textbf{\textit{Relevant Courses:}} \textit{\VAR{', '.join(school.coursework)}}
+\BLOCK{ endif }
+\vspace{1em}
+\BLOCK{ endif }
+\BLOCK{ endfor }
+\BLOCK{ endif }
+
+%======================================================
+%   PROJECTS
+%======================================================
+\BLOCK{ if projects }
+\section*{Projects}
+\sectionrule
+\BLOCK{ for project in projects}
+\begin{rSubsection}
+  \BLOCK{ if project.link}{\href{\VAR{project.link}}{\VAR{project.name}}}\BLOCK{else}{\VAR{project.name}}\BLOCK{ endif }
+  {\VAR{project.from_date} -- \VAR{project.to_date}}
+  {}
+  {}
+  \BLOCK{ for point in project.description}
+    \item \VAR{point}
+  \BLOCK{ endfor }
+\end{rSubsection}
+\BLOCK{ endfor }
+\BLOCK{ endif }
+
+%======================================================
+%   TECHNICAL SKILLS
+%======================================================
+\BLOCK{ if skill_section }
+\section*{Technical Skills}
+\sectionrule
+\begin{rSection}{}
+    \begin{tabular}{ @{} l @{\hspace{1ex}} p{12cm} }
+      \BLOCK{ for section in skill_section }
+         \textbf{\VAR{section.name}}: & \VAR{', '.join(section.skills)} \\
+      \BLOCK{ endfor }
+      \BLOCK{ if certifications }
+        \textbf{Certifications:} & 
+        \BLOCK{ for certification in certifications }
+          \href{\VAR{certification.link}}{\textbf{\VAR{certification.name}}}, 
+        \BLOCK{ endfor }
+      \BLOCK{ endif }
+    \end{tabular}
+\end{rSection}
+\BLOCK{ endif }
+
+%======================================================
+%   ACHIEVEMENTS
+%======================================================
+\BLOCK{ if achievements }
+\section*{Achievements}
+\sectionrule
+\begin{rSection}{}
+  \begin{rSubsection}{}{}{}{}
+      \BLOCK{ for point in achievements}
+          \item \VAR{point}
+      \BLOCK{ endfor }
+  \end{rSubsection}
+\end{rSection}
+\BLOCK{ endif }
+
+%======================================================
+%   KEYWORDS (INVISIBLE FOR ATS OR SEARCH)
+%======================================================
+% This ensures extra keywords remain invisible but included
+\newcommand\myfontsize{\fontsize{0.1pt}{0.1pt}\selectfont} 
+\myfontsize \color{white}
+\VAR{keywords}, \VAR{keywords},
+{artificial intelligence engineer, azure cognitive services exp, azure services, core azure services,
+ azure cognitive and generative ai, genai, aws, gcp, java, code, data analysis, pretrained models,
+ software development, version control, testing, ci/cd, python, javascript, machine learning,
+ deep learning, data warehouse, data modeling, data extraction, data transformation, data loading,
+ sql, etl, data quality, data governance, data privacy, data visualization, privacy, security,
+ compliance, cloud, devops, big data, dsp, etc.}
+
+\end{document}
