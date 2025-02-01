@@ -30,6 +30,15 @@
 \renewcommand{\labelitemi}{\textcolor{myblue}{$\bullet$}}
 \setlength{\parskip}{0.5em}
 
+%==== Headings ====%
+\name{\VAR{personal.name}} % Your name
+\address{
+\BLOCK{ if personal.phone }{\faPhone} \href{tel:\VAR{personal.phone}}{\VAR{personal.phone.replace(' ','')}} \quad \BLOCK{ endif }
+\BLOCK{ if personal.email }{\faEnvelope} \href{mailto:\VAR{personal.email}}{\VAR{personal.email}} \quad \BLOCK{ endif }
+\BLOCK{ if personal.github }{\faGithub} \href{\VAR{personal.github}}{\VAR{personal.github}} \quad \BLOCK{ endif }
+\BLOCK{ if personal.linkedin }{\faLinkedin} \href{\VAR{personal.linkedin}}{\VAR{personal.linkedin}} \BLOCK{ endif }
+}
+
 % Start document content
 \begin{document}
 

@@ -8,9 +8,8 @@
 \usepackage{array} % Required for boldface (\bf and \bfseries) tabular columns
 \usepackage{ifthen} % Required for ifthenelse statements
 
-\setlength{\textheight}{9in}
-\setlength{\textwidth}{7in}
-
+% \setlength{\textheight}{9in}
+% \setlength{\textwidth}{7in}
 
 \pagestyle{plain} % Suppress page numbers
 
@@ -100,8 +99,9 @@
     \\
     \textbf{{\em #3}} \hfill \textbf{{\em #4}} % Italic job title and location
   }\smallskip
-  \begin{list}{$\cdot$}{\leftmargin=0.75em} % \cdot used for bullets, no indentation
-    \itemsep -0.4em \vspace{-0.75em} % Compress items in list together for aesthetics
+  \begin{list}{$\cdot$}{\leftmargin=0.75em
+    \itemsep 0em % Removed large negative spacing
+  } % \cdot used for bullets, no indentation
   }{
   \end{list} % Some space after the list of bullet points
 }
@@ -109,12 +109,12 @@
 \newenvironment{rSubWork}[2]{ % 4 input arguments - company name, year(s) employed, job title and location
   {\textbf{{\em #1}}} \hfill \textbf{{#2}} % Bold company name and date on the right
   \smallskip
-  \begin{list}{$\cdot$}{\leftmargin=0.75em} % \cdot used for bullets, no indentation
-    \itemsep -0.4em \vspace{-0.75em} % Compress items in list together for aesthetics
+  \begin{list}{$\cdot$}{\leftmargin=0.75em
+    \itemsep 0em % Removed large negative spacing
+  } % \cdot used for bullets, no indentation
   }{
   \end{list} % Some space after the list of bullet points
 }
-
 
 % The below commands define the whitespace after certain things in the document - they can be \smallskip, \medskip or \bigskip
 \def\namesize{\Large} % Size of the name at the top of the document
