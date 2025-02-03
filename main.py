@@ -1,4 +1,5 @@
 import os
+import warnings
 from creds import OPENAI_KEY
 from application_generator import JobApplicationBuild, JobApplicationBuilder
 from models import ChatGPT
@@ -6,6 +7,10 @@ from prompts.resume_section_prompts import RESUME_WRITER_PERSONA
 from utils import LatexToolBox, text_to_pdf
 
 def main():
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
+    warnings.filterwarnings("ignore", category=UserWarning)
+    warnings.filterwarnings("ignore", category=FutureWarning)
+    
     llm = ChatGPT(
         api_key=OPENAI_KEY,
         model="gpt-4o",
@@ -44,8 +49,8 @@ def main():
     LatexToolBox.compile_latex_to_pdf(tex_file_path=build.resume_tex_path)
     print(f"Resume PDF is saved at {build.resume_tex_path.replace('.tex','.pdf')}")
 
-    cover_letter_pdf_path = build.cover_letter_txt_path.replace('.txt', '.pdf')
-    cover_letter_pdf_path = text_to_pdf(build.cover_letter, cover_letter_pdf_path)
+    cover_letter_pdf_path = build.cover_letter_path.replace('.txt', '.pdf')
+    cover_letter_pdf_path = text_to_pdf(build.cover_letter_path, cover_letter_pdf_path)
     print(f"Cover Letter PDF is saved at {cover_letter_pdf_path}")
 
     generator.cleanup_files(build)
