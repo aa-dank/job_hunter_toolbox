@@ -64,29 +64,49 @@ def extract_pdf_text(pdf_path: str): #kinda deprecated
 class JobApplicationBuild:
     """
     Dataclass for setting up the job application process.
+    Usually initialized with at least the job and resume content paths.
 
     Attributes:
+        job_content_path (str): File path to the job description or listing.
+        user_details_content_path (str): File path to the user's resume or personal data.
         resume_tex_template_path (str): Path to the LaTeX template used for resume generation.
         resume_cls_path (str): Path to the LaTeX class file for the resume.
         output_destination (str): Directory for storing output files.
+        timestamp (str): Timestamp used to distinguish output files.
         org (str): Name of the organization for which the job is applied.
         job_title (str): Parsed or assigned job title.
-        timestamp (str): Timestamp used to distinguish output files.
-        job_details (dict): Information extracted from the job content file.
-        resume_details (dict): Information extracted from the user's resume data.
-        job_content_path (str): File path to the job description or listing.
-        resume_content_path (str): File path to the user's resume or data.
+        parsed_job_details (dict): Extracted job details from the job content file.
+        parsed_job_details_path (str): File path where job details JSON is saved.
+        resume_details_dict (dict): Generated resume details in JSON format.
+        resume_json_path (str): File path where the resume JSON is saved.
+        resume_latex_text (str): Generated LaTeX content for the resume.
+        resume_tex_path (str): File path where the resume LaTeX file is saved.
+        parsed_user_data (dict): Extracted user data from the resume.
+        cover_letter_text (str): Generated cover letter text.
+        cover_letter_path (str): File path where the cover letter is saved.
     """
+    # Required attributes
+    job_content_path: str
+    user_details_content_path: str
+
+    # Optional attributes with default values
     resume_tex_template_path: str = "basic_template.tex"
     resume_cls_path: str = "resume.cls"
     output_destination: str = "output_files"
+    timestamp: str = datetime.now().strftime(r"%Y%m%d%H%M%S")
+    
+    # Attributes to be populated by the builder methods during the application generation process
     org: str = None
     job_title: str = None
-    timestamp: str = datetime.now().strftime(r"%Y%m%d%H%M%S")
-    job_details: dict = None
-    resume_details: dict = None
-    job_content_path: str = None
-    resume_content_path: str = None
+    parsed_job_details: dict = None
+    parsed_job_details_path: str = None
+    resume_details_dict: dict = None
+    resume_json_path: str = None
+    resume_latex_text: str = None
+    resume_tex_path: str = None
+    parsed_user_data: dict = None
+    cover_letter_text: str = None
+    cover_letter_path: str = None
 
     def get_job_doc_path(self, file_type: str = ""):
         """
@@ -148,25 +168,43 @@ class JobApplicationBuild:
 
 
 class JobApplicationBuilder:
+    """
+    A builder class that leverages an LLM to generate various parts of a job application.
+    All methods in this class receive a JobApplicationBuild object as a parameter and modify it in place.
+    Each method returns the updated build object.
+    """
  
-    def __init__(
-        self, llm: LLMProvider, build: JobApplicationBuild = None
-        ):
+    def __init__(self, llm: LLMProvider):
         """
         Initializes the JobApplicationBuilder class.
         """
         self.llm = llm
         self.md_converter = MarkItDown()
-        self.build = build if build else JobApplicationBuild()
 
-    def extract_job_content(self, job_content_path: str):
-        self.build.job_content_path = job_content_path
+    def extract_job_content(self, build: JobApplicationBuild):
+        """
+        Extracts job content from the provided file and updates the build object.
+
+        Modifies:
+            - build.structured_job_details with the extracted job details.
+            - build.structured_job_details_path with the JSON file path.
+        
+        Returns:
+            JobApplicationBuild: The updated build object.
+        """
+        if not build.job_content_path:
+            raise ValueError("Job content path is missing from the JobApplicationBuild object.")
+        
+        if build.parsed_job_details:
+            return build
+        
+        job_content_path = build.job_content_path
         job_content_path = Path(job_content_path)
         extension = job_content_path.suffix[1:]
-        if extension == 'json':
+        if (extension == 'json'):
             with open(job_content_path, 'r') as file:
                 job_content_str = json.load(file)
-        elif extension == 'md':
+        elif (extension == 'md'):
             with open(job_content_path, 'r') as file:
                 job_content_str = file.read()
         else:
@@ -196,20 +234,23 @@ class JobApplicationBuilder:
             ).format(job_description=job_content_str)
 
         job_details = self.llm.get_response(prompt=prompt, need_json_output=True)
-        self.build.org = job_details["company_name"]
-        self.build.job_title = job_details["job_title"]
+        build.org = job_details["company_name"]
+        build.job_title = job_details["job_title"]
+        build.parsed_job_details = job_details
 
-        jd_path = self.build.get_job_doc_path(file_type="jd")
+        structured_job_details_filepath = build.get_job_doc_path(file_type="jd")
 
         # Save the job details in a JSON file
-        with open(jd_path, 'w') as file:
+        with open(structured_job_details_filepath, 'w') as file:
             json.dump(job_details, file, indent=4)
         
-        print(f"Job Details JSON generated at: {jd_path}")
+        print(f"Job Details JSON generated at: {structured_job_details_filepath}")
 
-        return job_details, jd_path
+        build.parsed_job_details = job_details
+        build.parsed_job_details_path = structured_job_details_filepath
+        return build
     
-    def resume_to_json(self, resume_text: str):
+    def _resume_to_json(self, resume_text: str):
         """
         Converts a resume in PDF format to JSON format.
 
@@ -233,63 +274,83 @@ class JobApplicationBuilder:
         resume_json = self.llm.get_response(prompt=prompt, need_json_output=True)
         return resume_json
 
-
-    def user_data_extraction(self, user_data_path: str):
-        self.build.resume_content_path = user_data_path
+    def user_data_extraction(self, build: JobApplicationBuild):
         """
-        Extracts user data from the given file path.
+        Extracts user resume data from the provided file and updates the build object.
 
-        Args:
-            user_data_path (str): The path to the user data file.
-
+        Modifies:
+            - build.structured_user_data with the extracted user data.
+        
         Returns:
-            dict: The extracted user data in JSON format.
+            JobApplicationBuild: The updated build object.
         """
         print("\nFetching user data...")
+        
+        if not build.user_details_content_path:
+            raise ValueError("Resume content path is missing from the JobApplicationBuild object.")
 
+        if build.parsed_user_data:
+            return build
 
-        extension = os.path.splitext(user_data_path)[1]
+        extension = os.path.splitext(build.user_details_content_path)[1]
 
         if extension == ".json":
             # user_dat from json file
-            with open(user_data_path, 'r') as file:
+            with open(build.user_details_content_path, 'r') as file:
                 user_data = json.load(file)
         elif extension == ".md":
             # user_data from markdown file
-            with open(user_data_path, 'r') as file:
+            with open(build.user_details_content_path, 'r') as file:
                 user_data = file.read()
         else:
             try:
                 # use the markitdown library to convert the file to markdown
-                user_file_convertion = self.md_converter.convert(user_data_path)
+                user_file_convertion = self.md_converter.convert(build.user_details_content_path)
                 user_info_md = user_file_convertion.text_content
                 if not user_info_md:
                     raise Exception("Empty Markdown Convertion")
-                user_data = self.resume_to_json(user_info_md)
+                user_data = self._resume_to_json(user_info_md)
             except Exception as e:
                 if e.__class__.__name__ == "UnsupportedFormatException":
                     raise UnsupportedFileFormatException(f"Unsupported file format: {extension}")
                 else:
                     raise e
         
-        return user_data
+        build.parsed_user_data = user_data
+        return build
     
-    def generate_resume_json(self, job_content, user_data):
+    def generate_resume_json(self, build: JobApplicationBuild):
         """
-        Generates a resume in json format using the job content and user data.
+        Generates a resume JSON from job details and user data, updating the build object.
+
+        Modifies:
+            - build.resume_details_dict with the generated resume details.
+            - build.resume_json_path with the JSON file path.
+        
+        Returns:
+            JobApplicationBuild: The updated build object.
         """
         try:
             print("\nGenerating Resume Details...")
 
-            resume_details = dict()
+            if not build.parsed_user_data:
+                raise ValueError("User data is missing from the JobApplicationBuild object.")
+            
+            if not build.parsed_job_details:
+                raise ValueError("Job details are missing from the JobApplicationBuild object.")
 
+            if build.resume_details_dict and build.resume_json_path:
+                return build
+            
+            resume_details = dict()
+            
             # Personal Information Section
             resume_details["personal"] = { 
-                "name": user_data.get("name", ""),
-                "phone": user_data.get("phone", ""),
-                "email": user_data.get("email", ""),
-                "github": user_data.get("media", {}).get("github", ""),
-                "linkedin": user_data.get("media", {}).get("linkedin", ""),
+                "name": build.parsed_user_data.get("name", ""),
+                "phone": build.parsed_user_data.get("phone", ""),
+                "email": build.parsed_user_data.get("email", ""),
+                "github": build.parsed_user_data.get("media", {}).get("github", ""),
+                "linkedin": build.parsed_user_data.get("media", {}).get("linkedin", ""),
                 }
 
             # Other Sections
@@ -302,8 +363,8 @@ class JobApplicationBuilder:
                     partial_variables={"format_instructions": json_parser.get_format_instructions()},
                     template_format="jinja2",
                     validate_template=False
-                ).format(section_data = json.dumps(user_data[section]),
-                         job_description = json.dumps(job_content))
+                ).format(section_data = json.dumps(build.parsed_user_data[section]),
+                         job_description = json.dumps(build.parsed_job_details))
 
                 response = self.llm.get_response(prompt=prompt, need_json_output=True)
 
@@ -316,34 +377,42 @@ class JobApplicationBuilder:
                         else:
                             resume_details[section] = section_data
 
-            resume_details['keywords'] = ', '.join(job_content['keywords'])
+            resume_details['keywords'] = ', '.join(build.parsed_job_details['keywords'])
             
-            resume_path = self.build.get_job_doc_path(file_type="resume_json")
+            resume_json_filepath = build.get_job_doc_path(file_type="resume_json")
 
             # Save the resume details in a JSON file
-            with open(resume_path, 'w') as file:
+            with open(resume_json_filepath, 'w') as file:
                 json.dump(resume_details, file, indent=4)
 
-            return resume_details, resume_path
+            build.resume_details_dict = resume_details
+            build.resume_json_path = resume_json_filepath
+            return build
         
         except Exception as e:
             print(e)
             return None
     
-    def resume_json_to_resume_tex(self, resume_details):
+    def resume_json_to_resume_tex(self, build: JobApplicationBuild):
         """
-        Turns either a json file or dictionary into a tex file using the resume template.
-        :param resume_details: The resume details in json or dictionary format.
+        Generates a LaTeX file from the resume JSON and updates the build object.
+
+        Modifies:
+            - build.resume_latex with the LaTeX content.
+            - build.resume_tex_path with the path to the generated .tex file.
+        
+        Returns:
+            JobApplicationBuild: The updated build object.
         """
         try:
-
-            if type(resume_details) == str:
-                with open(resume_details, 'r') as file:
-                    resume_details = json.load(file)
-
-
+            if not build.resume_details_dict:
+                raise ValueError("Resume details are missing from the JobApplicationBuild object. Cannot generate resume without resume details.")
+            
+            if build.resume_latex_text and build.resume_tex_path:
+                return build
+            
             templates_path = os.path.join(os.getcwd(), 'templates')
-            output_path = self.build.get_job_doc_path(file_type="resume")
+            output_path = build.get_job_doc_path(file_type="resume")
 
             latex_jinja_env = jinja2.Environment(
                 block_start_string="\BLOCK{",
@@ -359,64 +428,61 @@ class JobApplicationBuilder:
                 loader=jinja2.FileSystemLoader(templates_path),
             )
 
-            escaped_resume_dict = LatexToolBox.escape_for_latex(resume_details)
+            escaped_resume_dict = LatexToolBox.escape_for_latex(build.resume_details_dict)
 
             resume_latex = LatexToolBox.tex_resume_from_jinja_template(jinja_env=latex_jinja_env,
                                                                        json_resume=escaped_resume_dict,
-                                                                       tex_jinja_template=self.build.resume_tex_template_path)
+                                                                       tex_jinja_template=build.resume_tex_template_path)
 
             
             # Save the resume in a tex file
             with open(output_path, 'w') as file:
                 file.write(resume_latex)
 
-            return resume_latex, output_path
+            build.resume_latex_text = resume_latex
+            build.resume_tex_path = output_path
+            return build
         
         except Exception as e:
             print(e)
             return None, None
 
-    def generate_cover_letter(self, job_details: dict, user_data: dict, custom_instructions: str = "", need_pdf: bool = True):
+    def generate_cover_letter(self, build: JobApplicationBuild, custom_instructions: str = "", need_pdf: bool = True):
         """
-        Generates a tailored cover letter based on job details and user data.
+        Generates a tailored cover letter by leveraging the job details and user data,
+        then updates the build object with the cover letter information.
 
-        This method constructs a prompt using the COVER_LETTER_GENERATOR template and
-        generates a cover letter using the language model (self.llm). It then saves the
-        cover letter as a text file, and if requested, converts it into a PDF file.
-
-        Args:
-            job_details (dict): A dictionary containing the job description and requirements.
-            user_data (dict): A dictionary containing the user's work information and personal details.
-            need_pdf (bool, optional): If True, converts the generated cover letter to a PDF file.
-                Defaults to True.
-            custom_instructions (str, optional): Additional instructions added to the prompt for generating the cover letter.
-
+        Modifies:
+            - build.cover_letter_text with the cover letter text.
+            - build.cover_letter_path with the path to the saved cover letter (PDF or text).
+        
         Returns:
-            tuple:
-                - cover_letter (str or None): The generated cover letter text, or None if an exception occurs.
-                - cover_letter_path (str or None): The file path to the saved cover letter (text or PDF),
-                  or None if an exception occurs.
-
-        Notes:
-            - The method uses `get_job_doc_path` to determine where to save the cover letter.
-            - If `need_pdf` is True, it converts the text file to a PDF using `text_to_pdf`.
-            - Any exceptions are caught, printed, and the method returns (None, None).
+            JobApplicationBuild: The updated build object.
         """
         try:
+            if not build.parsed_job_details or not build.parsed_user_data:
+                if not build.parsed_job_details:
+                    raise ValueError("Job details are missing from the JobApplicationBuild object.")
+                else:
+                    raise ValueError("User data is missing from the JobApplicationBuild object.")
+                
+            if build.cover_letter_text and build.cover_letter_path:
+                return build
+
             prompt = PromptTemplate(
                 template=COVER_LETTER_GENERATOR,
                 template_format="jinja2",
                 input_variables=["job_description", "my_work_information", "application_specific_instructions"], 
                 validate_template=False
             ).format(
-                job_description=job_details,
-                my_work_information=user_data,
+                job_description=build.parsed_job_details,
+                my_work_information=build.parsed_user_data,
                 application_specific_instructions=custom_instructions or ""
             )
 
             cover_letter = self.llm.get_response(prompt=prompt)
 
-            cover_letter_path = self.build.get_job_doc_path(file_type="cover_letter")
+            cover_letter_path = build.get_job_doc_path(file_type="cover_letter")
             # Save the cover letter in a text file
             with open(cover_letter_path, 'w') as file:
                 file.write(cover_letter)
@@ -425,12 +491,22 @@ class JobApplicationBuilder:
             if need_pdf:
                 text_to_pdf(cover_letter, cover_letter_path.replace(".txt", ".pdf"))
                 print("Cover Letter PDF generated at: ", cover_letter_path.replace(".txt", ".pdf"))
-                return cover_letter, cover_letter_path.replace(".txt", ".pdf")
+                build.cover_letter_text = cover_letter
+                build.cover_letter_path = cover_letter_path.replace(".txt", ".pdf")
+                return build
 
-            return cover_letter, cover_letter_path     
+            build.cover_letter_text = cover_letter
+            build.cover_letter_path = cover_letter_path
+            return build     
 
         except Exception as e:
             print(e)
             return None, None
+
+    def cleanup_files(self, build: JobApplicationBuild):
+        import shutil
+        if build.job_content_path:
+            shutil.move(build.job_content_path, build.get_job_doc_path())
+
 
 
