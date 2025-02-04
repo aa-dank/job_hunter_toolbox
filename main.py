@@ -46,7 +46,10 @@ def main():
                 print(f"{k} not installed")
 
     print("Compiling LaTeX to PDF...")
-    LatexToolBox.compile_latex_to_pdf(tex_file_path=build.resume_tex_path)
+    LatexToolBox.compile_latex_to_pdf(
+        tex_file_path=build.resume_tex_path,
+        cls_file_path=os.path.join("templates", build.resume_cls_path)
+    )
     print(f"Resume PDF is saved at {build.resume_tex_path.replace('.tex','.pdf')}")
 
     cover_letter_pdf_path = build.cover_letter_path.replace('.txt', '.pdf')
