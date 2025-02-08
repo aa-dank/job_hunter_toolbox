@@ -9,12 +9,20 @@ This toolbox automates resume and cover letter generation using LaTeX, Python, a
 3. Configure API credentials (e.g., OpenAI keys) for LLMProvider classes.
 
 ## Usage
-• Setup an LLMProvider class with your API credentials.
-• Pass the LLMProvider to the JobApplicationBuilder class.
-• Provide your resume content (PDF or text) and job listing content to the JobApplicationBuilder methods as demonstrated in the generation_notebook.
-• Edit the `.tex` or cover letter `.txt` files as needed, then compile using `LatexToolBox.compile_latex_to_pdf(...)`.  
+• Configure an LLMProvider with your API credentials.
+• Run the full application via:
+  
+  python main.py
+
+• The application flow will:
+  - Extract job and user data.
+  - Generate resume JSON and LaTeX files.
+  - Open the generated resume and cover letter files for editing.
+  - Upon confirmation (pressing Enter), compile the resume LaTeX file into a PDF and convert the cover letter text into a PDF.
+  
+• Edit the `.tex` and cover letter `.txt` files as needed before final PDF generation.
 
 ## Tools & Scripts
 • The `LatexToolBox` class in `utils.py` handles LaTeX compilation.  
-• Run `LatexToolBox.compile_latex_to_pdf(...)` after editing your `.tex` files.  
-• A similar flow applies for cover letters—open them, make changes, then convert if desired.
+• Main application logic is implemented in `main.py`.  
+• A similar flow applies for cover letters—edit then convert to PDF.

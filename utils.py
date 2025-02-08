@@ -8,7 +8,31 @@ from matplotlib.font_manager import FontManager
 from typing import Union, Any, Dict, List
 
 
-def text_to_pdf(text: str, file_path: str):
+def text_to_pdf(text: str, destination_path: str):
+    """
+    Convert a string of text into a PDF and save it to the specified destination.
+    
+    This function searches for fonts in the following order:
+      1. '/System/Library/Fonts/Supplemental/DejaVuSans.ttf'
+      2. '/Library/Fonts/Arial Unicode.ttf'
+      3. The built-in 'Helvetica'
+    
+    It attempts to load the font file if present. If not found, it falls back to the next option.
+    
+    Args:
+        text (str): The text to be added to the PDF.
+        destination_path (str): The destination file path for the generated PDF. A ".pdf" extension is appended if absent.
+    
+    Returns:
+        str: The absolute file path where the PDF is saved.
+    """
+    # validate destination path
+    destination_path = os.path.abspath(destination_path)
+    if not destination_path.endswith('.pdf'):
+        destination_path += '.pdf'
+    # Create directory if it doesn't exist
+    os.makedirs(os.path.dirname(destination_path), exist_ok=True)
+    
     # Initialize PDF with default page setup
     pdf = FPDF()
     pdf.add_page()
@@ -30,8 +54,8 @@ def text_to_pdf(text: str, file_path: str):
 
     # Write text and save
     pdf.multi_cell(0, 5, txt=text)
-    pdf.output(file_path)
-    return file_path
+    pdf.output(destination_path)
+    return destination_path
 
 
 LatexData = Union[str, List['LatexData'], Dict[Any, 'LatexData']]
@@ -154,83 +178,113 @@ class LatexToolBox:
                 font_commands.append({'type': font_type, 'font': font_name})
 
         return fonts, font_commands
+
+    @staticmethod
+    def compile_latex_to_pdf(tex_file_path: str, cls_file_path: str, output_dir: str, latex_engine: str = None):
+        """
+        Compiles LaTeX to PDF using specified engine and class file.
+        
+        Args:
+            tex_file_path (str): Path to .tex file
+            cls_file_path (str): Path to .cls file
+            output_dir (str): Directory for output files
+            latex_engine (str, optional): 'pdflatex' or 'xelatex'
+        """
+        try:
+            # Setup paths
+            tex_dir = os.path.dirname(os.path.abspath(tex_file_path))
+            os.makedirs(output_dir, exist_ok=True)
+            
+            # Copy cls file to output dir
+            cls_dest = os.path.join(output_dir, "resume.cls")
+            shutil.copy2(cls_file_path, cls_dest)
+
+            # Detect engine if not specified
+            if not latex_engine:
+                with open(tex_file_path, 'r') as f:
+                    latex_engine = 'xelatex' if '\\usepackage{fontspec}' in f.read() else 'pdflatex'
+
+            # Run compilation
+            cmd = [latex_engine, "-interaction=nonstopmode", tex_file_path]
+            for _ in range(2):
+                result = subprocess.run(
+                    cmd,
+                    cwd=output_dir,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE
+                )
+                if result.returncode != 0:
+                    raise RuntimeError(f"LaTeX compilation failed: {result.stderr.decode()}")
+
+            return True
+
+        except FileNotFoundError as e:
+            print(f"File not found: {e}")
+            return False
+        except RuntimeError as e:
+            print(f"Compilation error: {e}")
+            return False
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            return False
+
+    @staticmethod
+    def cleanup_latex_files(output_dir: str, base_name: str):
+        """Removes auxiliary LaTeX files."""
+        extensions = [".aux", ".log", ".out", ".toc", ".synctex.gz"]
+        for ext in extensions:
+            try:
+                aux_file = os.path.join(output_dir, base_name + ext)
+                if os.path.exists(aux_file):
+                    os.remove(aux_file)
+            except Exception as e:
+                print(f"Warning: Could not remove {ext} file: {e}")    
     
     @staticmethod
-    def compile_latex_to_pdf(tex_file_path: str, cls_file_path: str):
+    def compile_latex_to_pdf(tex_file_path: str, cls_file_path: str, output_destination_path: str, latex_engine: str = None):
         """
-        Compile a LaTeX file to PDF.
+        Compile a LaTeX file to PDF using the new workflow.
         
         Args:
             tex_file_path (str): Path to the .tex file.
-            cls_file_path (str): Path to the .cls file to be used.
+            cls_file_path (str): Path to the .cls file.
+            output_destination_path (str): Directory where output files will be written.
+            latex_engine (str, optional): e.g., 'pdflatex' or 'xelatex'. Detected if None.
         """
         def detect_latex_engine(tex_file_path: str) -> str:
             with open(tex_file_path, 'r') as tex_file:
-                tex_content = tex_file.read()
-            if '\\usepackage{fontspec}' in tex_content:
-                return 'xelatex'
-            else:
-                return 'pdflatex'
+                content = tex_file.read()
+            return 'xelatex' if '\\usepackage{fontspec}' in content else 'pdflatex'
         
         try:
-            # Absolute path of the LaTeX file
             tex_file_path = os.path.abspath(tex_file_path)
             tex_dir = os.path.dirname(tex_file_path)
             tex_filename = os.path.basename(tex_file_path)
-            filename_without_ext = os.path.splitext(tex_filename)[0]
-
-            # Determine output directory
-            output_dir = tex_dir
-
-            # Ensure the output directory exists
-            os.makedirs(output_dir, exist_ok=True)
-
-            # if the resume latex file uses the resume class...
-            with open(tex_file_path, 'r') as tex_file:
-                if '\documentclass{resume}' in tex_file.read():
-                    # Copy the resume.cls file to the output directory
-                    if os.path.exists(cls_file_path):
-                        # if the resume.cls file is not already in the output directory, copy it
-                        if not os.path.exists(os.path.join(output_dir, "resume.cls")):
-                            shutil.copy(cls_file_path, output_dir)
-                    else:
-                        print(f"Error: resume.cls file not found at {cls_file_path}")
-                        return None
+            base_name = os.path.splitext(tex_filename)[0]
+            os.makedirs(output_destination_path, exist_ok=True)
             
-            latex_engine = detect_latex_engine(tex_file_path)
-
+            # Copy cls file to output destination
+            cls_dest = os.path.join(output_destination_path, os.path.basename(cls_file_path))
+            shutil.copy2(cls_file_path, cls_dest)
+            
+            if not latex_engine:
+                latex_engine = detect_latex_engine(tex_file_path)
             if not shutil.which(latex_engine):
-                print(f"Error: LaTeX engine '{latex_engine}' not found.")
-                return None
-
-            # Run the LaTeX engine multiple times if necessary.
-            # It is common for LaTeX to require multiple runs to resolve references.
+                raise FileNotFoundError(f"LaTeX engine '{latex_engine}' not found.")
+            
+            # Copy the tex file to the output destination
+            shutil.copy2(tex_file_path, output_destination_path)
+            cmd = [latex_engine, "-output-directory", output_destination_path, tex_file_path]
+            
             for _ in range(2):
-                result = subprocess.run(
-                    [latex_engine, "-output-directory", output_dir, tex_file_path],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                )
-
+                result = subprocess.run(cmd, cwd=output_destination_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 if result.returncode != 0:
-                    print("Error during PDF generation:")
-                    print(result.stderr.decode())
-                    return None
-
-            # Clean up auxiliary files
-            aux_extensions = [".aux", ".log", ".out", ".toc", ".synctex.gz", ".cls"]
-            for ext in aux_extensions:
-                aux_file = os.path.join(output_dir, filename_without_ext + ext)
-                if os.path.exists(aux_file):
-                    os.remove(aux_file)
-
-            # Remove the resume.cls file if it was copied
-            if cls_file_path != os.path.join(os.getcwd(), 'templates', 'resume.cls'):
-                os.remove(os.path.join(output_dir, "resume.cls"))
-
-            print(f"PDF successfully saved to {output_dir}")
+                    raise RuntimeError(result.stderr.decode())
+            
+            print(f"PDF successfully saved to {output_destination_path}")
+            return True
 
         except Exception as e:
-            print("An error occurred:")
+            print("An error occurred during PDF generation.")
             print(e)
-            return None
+            return False
