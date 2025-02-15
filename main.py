@@ -51,8 +51,8 @@ def main():
     print("Compiling LaTeX to PDF...")
     output_dir = os.path.dirname(os.path.abspath(build.resume_tex_path))
     success = LatexToolBox.compile_latex_to_pdf(
-        tex_file_path=build.resume_tex_path, 
-        cls_file_path=build.resume_cls_path,
+        tex_filepath=build.resume_tex_path, 
+        cls_filepath=build.resume_cls_path,
         output_destination_path=output_dir
     )
     if success:

@@ -57,6 +57,25 @@ def text_to_pdf(text: str, destination_path: str):
     pdf.output(destination_path)
     return destination_path
 
+def print_directory_tree(start_path='.', indent=''):
+    """Recursively prints a text-based directory structure."""
+    try:
+        items = sorted(os.listdir(start_path))  # Sort items alphabetically
+    except PermissionError:
+        print(f"{indent}[Permission Denied] {start_path}")
+        return
+    
+    for index, item in enumerate(items):
+        path = os.path.join(start_path, item)
+        is_last = (index == len(items) - 1)
+        connector = '└── ' if is_last else '├── '
+        
+        print(indent + connector + item)
+        
+        if os.path.isdir(path):
+            new_indent = indent + ('    ' if is_last else '│   ')
+            print_directory_tree(path, new_indent)
+
 
 LatexData = Union[str, List['LatexData'], Dict[Any, 'LatexData']]
 
@@ -180,41 +199,42 @@ class LatexToolBox:
         return fonts, font_commands
 
     @staticmethod
-    def compile_latex_to_pdf(tex_file_path: str, cls_file_path: str, output_dir: str, latex_engine: str = None):
+    def compile_latex_to_pdf(tex_filepath: str, cls_filepath: str, output_destination_path: str, latex_engine: str = None):
         """
         Compiles LaTeX to PDF using specified engine and class file.
         
         Args:
-            tex_file_path (str): Path to .tex file
-            cls_file_path (str): Path to .cls file
-            output_dir (str): Directory for output files
+            tex_filepath (str): Path to .tex file
+            cls_filepath (str): Path to .cls file
+            output_destination_path (str): Directory for output files
             latex_engine (str, optional): 'pdflatex' or 'xelatex'
         """
         try:
             # Setup paths
-            tex_dir = os.path.dirname(os.path.abspath(tex_file_path))
-            os.makedirs(output_dir, exist_ok=True)
+            tex_dir = os.path.dirname(os.path.abspath(tex_filepath))
+            os.makedirs(output_destination_path, exist_ok=True)
             
             # Copy cls file to output dir
-            cls_dest = os.path.join(output_dir, "resume.cls")
-            shutil.copy2(cls_file_path, cls_dest)
+            cls_dest = os.path.join(output_destination_path, "resume.cls")
+            shutil.copy2(cls_filepath, cls_dest)
 
             # Detect engine if not specified
             if not latex_engine:
-                with open(tex_file_path, 'r') as f:
+                with open(tex_filepath, 'r') as f:
                     latex_engine = 'xelatex' if '\\usepackage{fontspec}' in f.read() else 'pdflatex'
 
             # Run compilation
-            cmd = [latex_engine, "-interaction=nonstopmode", tex_file_path]
+            cmd = [latex_engine, "-interaction=nonstopmode", tex_filepath]
             for _ in range(2):
                 result = subprocess.run(
                     cmd,
-                    cwd=output_dir,
+                    cwd=output_destination_path,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE
                 )
                 if result.returncode != 0:
-                    raise RuntimeError(f"LaTeX compilation failed: {result.stderr.decode()}")
+                    message = f"LaTeX compilation failed.\nCommand: {' '.join(cmd)}\nstderr: {result.stderr.decode()}\nstdout: {result.stdout.decode()}"
+                    raise RuntimeError(message)
 
             return True
 
@@ -230,7 +250,7 @@ class LatexToolBox:
 
     @staticmethod
     def cleanup_latex_files(output_dir: str, base_name: str):
-        """Removes auxiliary LaTeX files."""
+        """Removes auxiliary LaTeX files after compilation."""
         extensions = [".aux", ".log", ".out", ".toc", ".synctex.gz"]
         for ext in extensions:
             try:
@@ -239,52 +259,3 @@ class LatexToolBox:
                     os.remove(aux_file)
             except Exception as e:
                 print(f"Warning: Could not remove {ext} file: {e}")    
-    
-    @staticmethod
-    def compile_latex_to_pdf(tex_file_path: str, cls_file_path: str, output_destination_path: str, latex_engine: str = None):
-        """
-        Compile a LaTeX file to PDF using the new workflow.
-        
-        Args:
-            tex_file_path (str): Path to the .tex file.
-            cls_file_path (str): Path to the .cls file.
-            output_destination_path (str): Directory where output files will be written.
-            latex_engine (str, optional): e.g., 'pdflatex' or 'xelatex'. Detected if None.
-        """
-        def detect_latex_engine(tex_file_path: str) -> str:
-            with open(tex_file_path, 'r') as tex_file:
-                content = tex_file.read()
-            return 'xelatex' if '\\usepackage{fontspec}' in content else 'pdflatex'
-        
-        try:
-            tex_file_path = os.path.abspath(tex_file_path)
-            tex_dir = os.path.dirname(tex_file_path)
-            tex_filename = os.path.basename(tex_file_path)
-            base_name = os.path.splitext(tex_filename)[0]
-            os.makedirs(output_destination_path, exist_ok=True)
-            
-            # Copy cls file to output destination
-            cls_dest = os.path.join(output_destination_path, os.path.basename(cls_file_path))
-            shutil.copy2(cls_file_path, cls_dest)
-            
-            if not latex_engine:
-                latex_engine = detect_latex_engine(tex_file_path)
-            if not shutil.which(latex_engine):
-                raise FileNotFoundError(f"LaTeX engine '{latex_engine}' not found.")
-            
-            # Copy the tex file to the output destination
-            shutil.copy2(tex_file_path, output_destination_path)
-            cmd = [latex_engine, "-output-directory", output_destination_path, tex_file_path]
-            
-            for _ in range(2):
-                result = subprocess.run(cmd, cwd=output_destination_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                if result.returncode != 0:
-                    raise RuntimeError(result.stderr.decode())
-            
-            print(f"PDF successfully saved to {output_destination_path}")
-            return True
-
-        except Exception as e:
-            print("An error occurred during PDF generation.")
-            print(e)
-            return False
