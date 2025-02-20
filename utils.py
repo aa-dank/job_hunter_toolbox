@@ -200,31 +200,53 @@ class LatexToolBox:
 
     @staticmethod
     def compile_latex_to_pdf(tex_filepath: str, cls_filepath: str, output_destination_path: str, latex_engine: str = None):
-        import subprocess, os
-        # Copy the cls file to the output directory if necessary
-        cls_basename = os.path.basename(cls_filepath)
-        cls_dest = os.path.join(output_destination_path, cls_basename)
-        if not os.path.exists(cls_dest):
-            with open(cls_filepath, 'rb') as src, open(cls_dest, 'wb') as dst:
-                dst.write(src.read())
+        """
+        Compiles LaTeX to PDF using specified engine and class file.
         
-        # Use basename of the tex file in the command since cwd is set to the output directory
-        tex_basename = os.path.basename(tex_filepath)
-        cmd = ["pdflatex", "-interaction=nonstopmode", tex_basename]
-        
-        result = subprocess.run(
-            cmd,
-            cwd=output_destination_path,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-        
-        if result.returncode != 0:
-            message = f"LaTeX compilation failed.\nCommand: {' '.join(cmd)}\nstderr: {result.stderr.decode()}\nstdout: {result.stdout.decode()}"
-            raise RuntimeError(message)
-        
-        return True
+        Args:
+            tex_filepath (str): Path to .tex file
+            cls_filepath (str): Path to .cls file
+            output_destination_path (str): Directory for output files
+            latex_engine (str, optional): 'pdflatex' or 'xelatex'
+        """
+        try:
+            # Setup paths
+            tex_dir = os.path.dirname(os.path.abspath(tex_filepath))
+            os.makedirs(output_destination_path, exist_ok=True)
+            
+            # Copy cls file to output dir
+            cls_dest = os.path.join(output_destination_path, "resume.cls")
+            shutil.copy2(cls_filepath, cls_dest)
 
+            # Detect engine if not specified
+            if not latex_engine:
+                with open(tex_filepath, 'r') as f:
+                    latex_engine = 'xelatex' if '\\usepackage{fontspec}' in f.read() else 'pdflatex'
+
+            # Run compilation
+            cmd = [latex_engine, "-interaction=nonstopmode", tex_filepath]
+            for _ in range(2):
+                result = subprocess.run(
+                    cmd,
+                    cwd=output_destination_path,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE
+                )
+                if result.returncode != 0:
+                    message = f"LaTeX compilation failed.\nCommand: {' '.join(cmd)}\nstderr: {result.stderr.decode()}\nstdout: {result.stdout.decode()}"
+                    raise RuntimeError(message)
+
+            return True
+
+        except FileNotFoundError as e:
+            print(f"File not found: {e}")
+            return False
+        except RuntimeError as e:
+            print(f"Compilation error: {e}")
+            return False
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            return False
 
     @staticmethod
     def cleanup_latex_files(output_dir: str, base_name: str):
@@ -236,4 +258,4 @@ class LatexToolBox:
                 if os.path.exists(aux_file):
                     os.remove(aux_file)
             except Exception as e:
-                print(f"Warning: Could not remove {ext} file: {e}")
+                print(f"Warning: Could not remove {ext} file: {e}")    
