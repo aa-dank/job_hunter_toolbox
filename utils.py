@@ -215,8 +215,16 @@ class LatexToolBox:
             os.makedirs(output_destination_path, exist_ok=True)
             
             # Copy cls file to output dir
-            cls_dest = os.path.join(output_destination_path, "resume.cls")
-            shutil.copy2(cls_filepath, cls_dest)
+            cls_filename = os.path.basename(cls_filepath)
+            cls_dest = os.path.join(output_destination_path, cls_filename)
+            if not os.path.exists(cls_dest):
+                shutil.copy2(cls_filepath, cls_dest)
+
+            #copy tex file to output dir
+            tex_filename = os.path.basename(tex_filepath)
+            tex_dest = os.path.join(output_destination_path, tex_filename)
+            if not os.path.exists(tex_dest):
+                shutil.copy2(tex_filepath, tex_dest)
 
             # Detect engine if not specified
             if not latex_engine:
@@ -224,7 +232,7 @@ class LatexToolBox:
                     latex_engine = 'xelatex' if '\\usepackage{fontspec}' in f.read() else 'pdflatex'
 
             # Run compilation
-            cmd = [latex_engine, "-interaction=nonstopmode", tex_filepath]
+            cmd = [latex_engine, "-interaction=nonstopmode", tex_filename]
             for _ in range(2):
                 result = subprocess.run(
                     cmd,
