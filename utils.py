@@ -214,6 +214,14 @@ class LatexToolBox:
             tex_dir = os.path.dirname(os.path.abspath(tex_filepath))
             os.makedirs(output_destination_path, exist_ok=True)
             
+            # Resolve cls filepath (allow just basename by looking in ./templates)
+            if not os.path.exists(cls_filepath):
+                alt = os.path.join(os.getcwd(), 'templates', cls_filepath)
+                if os.path.exists(alt):
+                    cls_filepath = alt
+                else:
+                    raise FileNotFoundError(f"LaTeX class file not found: {cls_filepath}")
+            
             # Copy cls file to output dir
             cls_filename = os.path.basename(cls_filepath)
             cls_dest = os.path.join(output_destination_path, cls_filename)
