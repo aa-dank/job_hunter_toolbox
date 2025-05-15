@@ -15,7 +15,10 @@ from pathlib import Path
 from prompts.extraction_prompts import RESUME_DETAILS_EXTRACTOR, JOB_DETAILS_EXTRACTOR, COVER_LETTER_GENERATOR
 from prompts.resume_section_prompts import EXPERIENCE, SKILLS, PROJECTS, EDUCATIONS, CERTIFICATIONS, ACHIEVEMENTS, RESUME_WRITER_PERSONA
 from utils import LatexToolBox, text_to_pdf
+from logger import setup_logger
 
+# Initialize logger
+logger = setup_logger(name="ApplicationGenerator", log_file="application_generator.log")
 
 resume_section_prompt_map = {
     "work_experience": {"prompt":EXPERIENCE, "schema": Experiences},
@@ -182,73 +185,68 @@ class JobApplicationBuilder:
         self.md_converter = MarkItDown()
 
     def extract_job_content(self, build: JobApplicationBuild):
-        """
-        Extracts job content from the provided file and updates the build object.
+        logger.info("Extracting job content from the provided file.")
+        try:
+            if not build.job_content_path:
+                raise ValueError("Job content path is missing from the JobApplicationBuild object.")
+            
+            if build.parsed_job_details:
+                return build
+            
+            job_content_path = build.job_content_path
+            job_content_path = Path(job_content_path)
+            extension = job_content_path.suffix[1:]
+            if (extension == 'json'):
+                with open(job_content_path, 'r') as file:
+                    job_content_str = json.load(file)
+            elif (extension == 'md'):
+                with open(job_content_path, 'r') as file:
+                    job_content_str = file.read()
+            else:
+                try:
+                    # use the markitdown library to convert the file to markdown
+                    convertion_result = self.md_converter.convert(str(job_content_path))
+                    job_content_str = convertion_result.text_content
+                    if not job_content_str:
+                        raise Exception("Empty Markdown Convertion")
+                except Exception as e:
+                    
+                    # if markitdown._markitdown.UnsupportedFormatException...
+                    if e.__class__.__name__ == "UnsupportedFormatException":
+                        raise UnsupportedFileFormatException(f"Unsupported file format: {extension}")
+                    else:
+                        raise e
 
-        Modifies:
-            - build.structured_job_details with the extracted job details.
-            - build.structured_job_details_path with the JSON file path.
-        
-        Returns:
-            JobApplicationBuild: The updated build object.
-        """
-        if not build.job_content_path:
-            raise ValueError("Job content path is missing from the JobApplicationBuild object.")
-        
-        if build.parsed_job_details:
+
+            json_parser = JsonOutputParser(pydantic_object=JobDetails)
+            
+            prompt = PromptTemplate(
+                template=JOB_DETAILS_EXTRACTOR,
+                input_variables=["job_description"],
+                partial_variables={"format_instructions": json_parser.get_format_instructions()},
+                template_format="jinja2",
+                validate_template=False
+                ).format(job_description=job_content_str)
+
+            job_details = self.llm.get_response(prompt=prompt, need_json_output=True)
+            build.org = job_details["company_name"]
+            build.job_title = job_details["job_title"]
+            build.parsed_job_details = job_details
+
+            structured_job_details_filepath = build.get_job_doc_path(file_type="jd")
+
+            # Save the job details in a JSON file
+            with open(structured_job_details_filepath, 'w') as file:
+                json.dump(job_details, file, indent=4)
+            
+            logger.info(f"Job Details JSON generated at: {structured_job_details_filepath}")
+
+            build.parsed_job_details = job_details
+            build.parsed_job_details_path = structured_job_details_filepath
             return build
-        
-        job_content_path = build.job_content_path
-        job_content_path = Path(job_content_path)
-        extension = job_content_path.suffix[1:]
-        if (extension == 'json'):
-            with open(job_content_path, 'r') as file:
-                job_content_str = json.load(file)
-        elif (extension == 'md'):
-            with open(job_content_path, 'r') as file:
-                job_content_str = file.read()
-        else:
-            try:
-                # use the markitdown library to convert the file to markdown
-                convertion_result = self.md_converter.convert(str(job_content_path))
-                job_content_str = convertion_result.text_content
-                if not job_content_str:
-                    raise Exception("Empty Markdown Convertion")
-            except Exception as e:
-                
-                # if markitdown._markitdown.UnsupportedFormatException...
-                if e.__class__.__name__ == "UnsupportedFormatException":
-                    raise UnsupportedFileFormatException(f"Unsupported file format: {extension}")
-                else:
-                    raise e
-
-
-        json_parser = JsonOutputParser(pydantic_object=JobDetails)
-        
-        prompt = PromptTemplate(
-            template=JOB_DETAILS_EXTRACTOR,
-            input_variables=["job_description"],
-            partial_variables={"format_instructions": json_parser.get_format_instructions()},
-            template_format="jinja2",
-            validate_template=False
-            ).format(job_description=job_content_str)
-
-        job_details = self.llm.get_response(prompt=prompt, need_json_output=True)
-        build.org = job_details["company_name"]
-        build.job_title = job_details["job_title"]
-        build.parsed_job_details = job_details
-
-        structured_job_details_filepath = build.get_job_doc_path(file_type="jd")
-
-        # Save the job details in a JSON file
-        with open(structured_job_details_filepath, 'w') as file:
-            json.dump(job_details, file, indent=4)
-        
-        print(f"Job Details JSON generated at: {structured_job_details_filepath}")
-
-        build.parsed_job_details = job_details
-        build.parsed_job_details_path = structured_job_details_filepath
-        return build
+        except Exception as e:
+            logger.error(f"Error extracting job content: {e}", exc_info=True)
+            raise
     
     def _resume_to_json(self, resume_text: str):
         """
@@ -275,64 +273,48 @@ class JobApplicationBuilder:
         return resume_json
 
     def user_data_extraction(self, build: JobApplicationBuild):
-        """
-        Extracts user resume data from the provided file and updates the build object.
+        logger.info("Extracting user data from the provided resume file.")
+        try:
+            if not build.user_details_content_path:
+                raise ValueError("Resume content path is missing from the JobApplicationBuild object.")
 
-        Modifies:
-            - build.structured_user_data with the extracted user data.
-        
-        Returns:
-            JobApplicationBuild: The updated build object.
-        """
-        print("\nFetching user data...")
-        
-        if not build.user_details_content_path:
-            raise ValueError("Resume content path is missing from the JobApplicationBuild object.")
+            if build.parsed_user_data:
+                return build
 
-        if build.parsed_user_data:
+            extension = os.path.splitext(build.user_details_content_path)[1]
+
+            if extension == ".json":
+                # user_dat from json file
+                with open(build.user_details_content_path, 'r') as file:
+                    user_data = json.load(file)
+            elif extension == ".md":
+                # user_data from markdown file
+                with open(build.user_details_content_path, 'r') as file:
+                    user_data = file.read()
+            else:
+                try:
+                    # use the markitdown library to convert the file to markdown
+                    user_file_convertion = self.md_converter.convert(build.user_details_content_path)
+                    user_info_md = user_file_convertion.text_content
+                    if not user_info_md:
+                        raise Exception("Empty Markdown Convertion")
+                    user_data = self._resume_to_json(user_info_md)
+                except Exception as e:
+                    if e.__class__.__name__ == "UnsupportedFormatException":
+                        raise UnsupportedFileFormatException(f"Unsupported file format: {extension}")
+                    else:
+                        raise e
+            
+            build.parsed_user_data = user_data
+            logger.info("User data extracted successfully.")
             return build
-
-        extension = os.path.splitext(build.user_details_content_path)[1]
-
-        if extension == ".json":
-            # user_dat from json file
-            with open(build.user_details_content_path, 'r') as file:
-                user_data = json.load(file)
-        elif extension == ".md":
-            # user_data from markdown file
-            with open(build.user_details_content_path, 'r') as file:
-                user_data = file.read()
-        else:
-            try:
-                # use the markitdown library to convert the file to markdown
-                user_file_convertion = self.md_converter.convert(build.user_details_content_path)
-                user_info_md = user_file_convertion.text_content
-                if not user_info_md:
-                    raise Exception("Empty Markdown Convertion")
-                user_data = self._resume_to_json(user_info_md)
-            except Exception as e:
-                if e.__class__.__name__ == "UnsupportedFormatException":
-                    raise UnsupportedFileFormatException(f"Unsupported file format: {extension}")
-                else:
-                    raise e
-        
-        build.parsed_user_data = user_data
-        return build
+        except Exception as e:
+            logger.error(f"Error extracting user data: {e}", exc_info=True)
+            raise
     
     def generate_resume_json(self, build: JobApplicationBuild):
-        """
-        Generates a resume JSON from job details and user data, updating the build object.
-
-        Modifies:
-            - build.resume_details_dict with the generated resume details.
-            - build.resume_json_path with the JSON file path.
-        
-        Returns:
-            JobApplicationBuild: The updated build object.
-        """
+        logger.info("Generating resume JSON from job details and user data.")
         try:
-            print("\nGenerating Resume Details...")
-
             if not build.parsed_user_data:
                 raise ValueError("User data is missing from the JobApplicationBuild object.")
             
@@ -355,7 +337,7 @@ class JobApplicationBuilder:
 
             # Other Sections
             for section in ['work_experience', 'projects', 'skill_section', 'education', 'certifications', 'achievements']:
-                print(f"Processing Resume's {section.upper()} Section...")
+                logger.info(f"Processing Resume's {section.upper()} Section...")
                 json_parser = JsonOutputParser(pydantic_object=resume_section_prompt_map[section]["schema"])
                 
                 prompt = PromptTemplate(
@@ -387,23 +369,14 @@ class JobApplicationBuilder:
 
             build.resume_details_dict = resume_details
             build.resume_json_path = resume_json_filepath
+            logger.info(f"Resume JSON saved at: {resume_json_filepath}")
             return build
-        
         except Exception as e:
-            print(e)
-            return None
+            logger.error(f"Error generating resume JSON: {e}", exc_info=True)
+            raise
     
     def resume_json_to_resume_tex(self, build: JobApplicationBuild):
-        """
-        Generates a LaTeX file from the resume JSON and updates the build object.
-
-        Modifies:
-            - build.resume_latex with the LaTeX content.
-            - build.resume_tex_path with the path to the generated .tex file.
-        
-        Returns:
-            JobApplicationBuild: The updated build object.
-        """
+        logger.info("Converting resume JSON to LaTeX format.")
         try:
             if not build.resume_details_dict:
                 raise ValueError("Resume details are missing from the JobApplicationBuild object. Cannot generate resume without resume details.")
@@ -441,24 +414,14 @@ class JobApplicationBuilder:
 
             build.resume_latex_text = resume_latex
             build.resume_tex_path = output_path
+            logger.info(f"Resume LaTeX file saved at: {output_path}")
             return build
-        
         except Exception as e:
-            print(e)
-            return None, None
+            logger.error(f"Error converting resume JSON to LaTeX: {e}", exc_info=True)
+            raise
 
     def generate_cover_letter(self, build: JobApplicationBuild, custom_instructions: str = "", need_pdf: bool = True):
-        """
-        Generates a tailored cover letter by leveraging the job details and user data,
-        then updates the build object with the cover letter information.
-
-        Modifies:
-            - build.cover_letter_text with the cover letter text.
-            - build.cover_letter_path with the path to the saved cover letter (PDF or text).
-        
-        Returns:
-            JobApplicationBuild: The updated build object.
-        """
+        logger.info("Generating cover letter.")
         try:
             if not build.parsed_job_details or not build.parsed_user_data:
                 if not build.parsed_job_details:
@@ -487,10 +450,10 @@ class JobApplicationBuilder:
             with open(cover_letter_path, 'w') as file:
                 file.write(cover_letter)
 
-            print("Cover Letter generated at: ", cover_letter_path)
+            logger.info(f"Cover letter generated at: {cover_letter_path}")
             if need_pdf:
                 text_to_pdf(cover_letter, cover_letter_path.replace(".txt", ".pdf"))
-                print("Cover Letter PDF generated at: ", cover_letter_path.replace(".txt", ".pdf"))
+                logger.info(f"Cover letter PDF generated at: {cover_letter_path.replace('.txt', '.pdf')}")
                 build.cover_letter_text = cover_letter
                 build.cover_letter_path = cover_letter_path.replace(".txt", ".pdf")
                 return build
@@ -498,10 +461,9 @@ class JobApplicationBuilder:
             build.cover_letter_text = cover_letter
             build.cover_letter_path = cover_letter_path
             return build     
-
         except Exception as e:
-            print(e)
-            return None, None
+            logger.error(f"Error generating cover letter: {e}", exc_info=True)
+            raise
 
     def validate_resume_json(self, build: JobApplicationBuild):
         """
@@ -547,13 +509,20 @@ class JobApplicationBuilder:
             return build
 
         except Exception as e:
-            print(e)
+            logger.error(f"Error validating resume JSON: {e}", exc_info=True)
             return None
 
     def cleanup_files(self, build: JobApplicationBuild):
-        import shutil
-        if build.job_content_path:
-            shutil.move(build.job_content_path, build.get_job_doc_path())
+        logger.info("Cleaning up temporary files.")
+        try:
+            import shutil
+            if build.job_content_path:
+                shutil.move(build.job_content_path, build.get_job_doc_path())
+            logger.info("Temporary files cleaned up successfully.")
+        except Exception as e:
+            logger.error(f"Error during cleanup: {e}", exc_info=True)
+            raise
+``` 
 
 
 
