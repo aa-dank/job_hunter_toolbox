@@ -503,6 +503,53 @@ class JobApplicationBuilder:
             print(e)
             return None, None
 
+    def validate_resume_json(self, build: JobApplicationBuild):
+        """
+        Validates the generated resume JSON against the original user data to detect and correct hallucinations.
+
+        Modifies:
+            - build.resume_details_dict with the validated resume details.
+            - Saves the corrected JSON to the same file path.
+
+        Returns:
+            JobApplicationBuild: The updated build object.
+        """
+        try:
+            if not build.resume_details_dict:
+                raise ValueError("Resume details are missing from the JobApplicationBuild object. Cannot validate without resume details.")
+
+            if not build.parsed_user_data:
+                raise ValueError("User data is missing from the JobApplicationBuild object. Cannot validate without user data.")
+
+            from prompts.validation_prompts import RESUME_VALIDATION_PROMPT
+            from langchain_core.output_parsers import JsonOutputParser
+
+            json_parser = JsonOutputParser(pydantic_object=ResumeSchema)
+
+            prompt = PromptTemplate(
+                template=RESUME_VALIDATION_PROMPT,
+                input_variables=["original_user_data", "generated_resume_json"],
+                partial_variables={"format_instructions": json_parser.get_format_instructions()},
+                template_format="jinja2",
+                validate_template=False
+            ).format(
+                original_user_data=json.dumps(build.parsed_user_data),
+                generated_resume_json=json.dumps(build.resume_details_dict)
+            )
+
+            validated_resume = self.llm.get_response(prompt=prompt, need_json_output=True)
+
+            # Save the validated resume JSON to the same file path
+            with open(build.resume_json_path, 'w') as file:
+                json.dump(validated_resume, file, indent=4)
+
+            build.resume_details_dict = validated_resume
+            return build
+
+        except Exception as e:
+            print(e)
+            return None
+
     def cleanup_files(self, build: JobApplicationBuild):
         import shutil
         if build.job_content_path:

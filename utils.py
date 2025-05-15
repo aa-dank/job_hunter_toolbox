@@ -199,35 +199,33 @@ class LatexToolBox:
         return fonts, font_commands
 
     @staticmethod
-    def compile_latex_to_pdf(tex_filepath: str, cls_filepath: str, output_destination_path: str, latex_engine: str = None):
-        """
-        Compiles LaTeX to PDF using specified engine and class file.
-        
-        Args:
-            tex_filepath (str): Path to .tex file
-            cls_filepath (str): Path to .cls file
-            output_destination_path (str): Directory for output files
-            latex_engine (str, optional): 'pdflatex' or 'xelatex'
-        """
+    def compile_latex_to_pdf(tex_filepath: str,
+                             cls_filepath: str,
+                             output_destination_path: str,
+                             latex_engine: str = None):
+
         try:
-            # Setup paths
-            tex_dir = os.path.dirname(os.path.abspath(tex_filepath))
-            os.makedirs(output_destination_path, exist_ok=True)
-            
-            # Resolve cls filepath (allow just basename by looking in ./templates)
+            # … existing setup …
+            # Resolve cls_filepath as before…
             if not os.path.exists(cls_filepath):
-                alt = os.path.join(os.getcwd(), 'templates', cls_filepath)
+                project_dir = os.path.dirname(os.path.abspath(__file__))
+                alt = os.path.join(project_dir, 'templates', cls_filepath)
                 if os.path.exists(alt):
                     cls_filepath = alt
                 else:
-                    raise FileNotFoundError(f"LaTeX class file not found: {cls_filepath}")
-            
-            # Copy cls file to output dir
-            cls_filename = os.path.basename(cls_filepath)
-            cls_dest = os.path.join(output_destination_path, cls_filename)
+                    raise FileNotFoundError(...)
+
+            # Determine which .cls filename the .tex actually wants:
+            with open(tex_filepath, 'r', encoding='utf-8') as f:
+                header = f.read(2048)
+            m = re.search(r'\\documentclass\{([^}]+)\}', header)
+            class_name = m.group(1) if m else os.path.splitext(os.path.basename(cls_filepath))[0]
+
+            # Copy/rename .cls into the build folder as <class_name>.cls
+            cls_dest = os.path.join(output_destination_path, f"{class_name}.cls")
             if not os.path.exists(cls_dest):
                 shutil.copy2(cls_filepath, cls_dest)
-
+                
             #copy tex file to output dir
             tex_filename = os.path.basename(tex_filepath)
             tex_dest = os.path.join(output_destination_path, tex_filename)
