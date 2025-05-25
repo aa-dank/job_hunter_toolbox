@@ -327,43 +327,93 @@ class JobApplicationBuilder:
             resume_details = dict()
             
             # Personal Information Section
-            resume_details["personal"] = { 
-                "name": build.parsed_user_data.get("name", ""),
-                "phone": build.parsed_user_data.get("phone", ""),
-                "email": build.parsed_user_data.get("email", ""),
-                "github": build.parsed_user_data.get("media", {}).get("github", ""),
-                "linkedin": build.parsed_user_data.get("media", {}).get("linkedin", ""),
+            # build.parsed_user_data is a dict representation of ResumeSchema after _resume_to_json
+            parsed_personal_data_obj = build.parsed_user_data.get("personal") # This will be a dict like {"name": "...", "github": HttpUrl(...)}
+            if parsed_personal_data_obj:
+                resume_details["personal"] = {
+                    "name": parsed_personal_data_obj.get("name"),
+                    "phone": parsed_personal_data_obj.get("phone"),
+                    "email": parsed_personal_data_obj.get("email"),
+                    "github": str(parsed_personal_data_obj.get("github")) if parsed_personal_data_obj.get("github") else None,
+                    "linkedin": str(parsed_personal_data_obj.get("linkedin")) if parsed_personal_data_obj.get("linkedin") else None,
                 }
+            else:
+                resume_details["personal"] = {} 
+                logger.warning("Personal details not found in parsed_user_data after extraction.")
 
-            # Other Sections
-            for section in ['work_experience', 'projects', 'skill_section', 'education', 'certifications', 'achievements']:
-                logger.info(f"Processing Resume's {section.upper()} Section...")
-                json_parser = JsonOutputParser(pydantic_object=resume_section_prompt_map[section]["schema"])
+            # Summary Section (direct copy from parsed_user_data)
+            resume_details["summary"] = build.parsed_user_data.get("summary", None)
+
+            # Other Sections that require LLM processing
+            # section_map: key is for resume_details and build.parsed_user_data (ResumeSchema keys)
+            #              value is for resume_section_prompt_map and the key within the LLM's JSON response for that section
+            section_map = {
+                "experiences": "work_experience",
+                "projects": "projects",
+                "skills": "skill_section",
+                "educations": "education",
+                "certifications": "certifications",
+                "achievements": "achievements"
+            }
+
+            for resume_key, map_key in section_map.items():
+                logger.info(f"Processing Resume's {resume_key.upper()} Section...")
                 
+                prompt_info = resume_section_prompt_map.get(map_key)
+                if not prompt_info:
+                    logger.warning(f"No prompt info found for {map_key} (from {resume_key}). Initializing section as empty.")
+                    resume_details[resume_key] = {map_key: []} # Default structure e.g., {"work_experience": []}
+                    continue
+
+                json_parser = JsonOutputParser(pydantic_object=prompt_info["schema"])
+                
+                # Extract the list of items for the current section from build.parsed_user_data
+                # e.g., for resume_key="experiences", user_section_container is build.parsed_user_data.get("experiences")
+                # which would be a dict like {"work_experience": [...]}. We need the list part.
+                user_section_container = build.parsed_user_data.get(resume_key) 
+                actual_user_data_list = []
+                if isinstance(user_section_container, dict):
+                    actual_user_data_list = user_section_container.get(map_key, [])
+                elif resume_key == "achievements" and isinstance(user_section_container, list): # achievements might be a direct list if schema was simpler before
+                    actual_user_data_list = user_section_container
+
+
                 prompt = PromptTemplate(
-                    template=resume_section_prompt_map[section]["prompt"],
+                    template=prompt_info["prompt"],
                     partial_variables={"format_instructions": json_parser.get_format_instructions()},
                     template_format="jinja2",
                     validate_template=False
-                ).format(section_data = json.dumps(build.parsed_user_data[section]),
-                         job_description = json.dumps(build.parsed_job_details))
+                ).format(section_data=json.dumps(actual_user_data_list), 
+                         job_description=json.dumps(build.parsed_job_details))
 
-                response = self.llm.get_response(prompt=prompt, need_json_output=True)
+                response = self.llm.get_response(prompt=prompt, need_json_output=True) # Expected: {"map_key": [...]}
 
-                # Check for empty sections
                 if isinstance(response, dict):
-                    section_data = response.get(section)
-                    if section_data:
-                        if section == "skill_section":
-                            resume_details[section] = [i for i in section_data if i.get('skills')]
-                        else:
-                            resume_details[section] = section_data
-
-            resume_details['keywords'] = ', '.join(build.parsed_job_details['keywords'])
+                    processed_section_data_list = response.get(map_key) 
+                    if processed_section_data_list is not None: # Check for None, empty list is valid data
+                        if resume_key == "skills": 
+                            valid_skill_groups = []
+                            if isinstance(processed_section_data_list, list):
+                                valid_skill_groups = [i for i in processed_section_data_list if isinstance(i, dict) and i.get('skills')]
+                            resume_details[resume_key] = {map_key: valid_skill_groups}
+                        else: 
+                            # Ensures the data for map_key is a list
+                            resume_details[resume_key] = {map_key: processed_section_data_list if isinstance(processed_section_data_list, list) else []}
+                    else:
+                        logger.warning(f"LLM response for {map_key} (from {resume_key}) did not contain the key '{map_key}'. Initializing as empty list for this part.")
+                        resume_details[resume_key] = {map_key: []} 
+                else:
+                    logger.warning(f"LLM response for {map_key} (from {resume_key}) was not a dict. Initializing as empty list for this part.")
+                    resume_details[resume_key] = {map_key: []}
+            
+            # Keywords section (not part of ResumeSchema but used by template)
+            if build.parsed_job_details and 'keywords' in build.parsed_job_details:
+                resume_details['keywords'] = ', '.join(build.parsed_job_details['keywords'])
+            else:
+                resume_details['keywords'] = '' 
             
             resume_json_filepath = build.get_job_doc_path(file_type="resume_json")
 
-            # Save the resume details in a JSON file
             with open(resume_json_filepath, 'w') as file:
                 json.dump(resume_details, file, indent=4)
 
@@ -522,7 +572,6 @@ class JobApplicationBuilder:
         except Exception as e:
             logger.error(f"Error during cleanup: {e}", exc_info=True)
             raise
-``` 
 
 
 
