@@ -436,7 +436,7 @@ class JobApplicationBuilder:
             
             templates_path = os.path.join(os.getcwd(), 'templates')
             output_path = build.get_job_doc_path(file_type="resume")
-
+            
             latex_jinja_env = jinja2.Environment(
                 block_start_string="\BLOCK{",
                 block_end_string="}",
@@ -452,6 +452,26 @@ class JobApplicationBuilder:
             )
 
             escaped_resume_dict = LatexToolBox.escape_for_latex(build.resume_details_dict)
+
+            flattened_resume = {
+                'personal': escaped_resume_dict.get('personal', {}),
+                'summary': escaped_resume_dict.get('summary', None),
+                'keywords': escaped_resume_dict.get('keywords', ''),
+                
+                # Extract nested lists with safe fallbacks
+                'work_experience': escaped_resume_dict.get('experiences', {}).get('work_experience', []),
+                'education': escaped_resume_dict.get('educations', {}).get('education', []),
+                'projects': escaped_resume_dict.get('projects', {}).get('projects', []),
+                'skill_section': escaped_resume_dict.get('skills', {}).get('skill_section', [])
+            }
+
+            # Add optional sections only if they exist
+            if 'achievements' in escaped_resume_dict:
+                flattened_resume['achievements'] = escaped_resume_dict['achievements'].get('achievements', [])
+            if 'certifications' in escaped_resume_dict:
+                flattened_resume['certifications'] = escaped_resume_dict['certifications'].get('certifications', [])
+
+
 
             resume_latex = LatexToolBox.tex_resume_from_jinja_template(jinja_env=latex_jinja_env,
                                                                        json_resume=escaped_resume_dict,
