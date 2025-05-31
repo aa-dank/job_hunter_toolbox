@@ -466,15 +466,15 @@ class JobApplicationBuilder:
             }
 
             # Add optional sections only if they exist
-            if 'achievements' in escaped_resume_dict:
-                flattened_resume['achievements'] = escaped_resume_dict['achievements'].get('achievements', [])
-            if 'certifications' in escaped_resume_dict:
+            if 'achievements' in escaped_resume_dict and isinstance(escaped_resume_dict['achievements'], dict):
+                flattened_resume['achievements'] = escaped_resume_dict.get('achievements', {}).get('achievements', [])
+            if 'certifications' in escaped_resume_dict and isinstance(escaped_resume_dict['certifications'], dict):
                 flattened_resume['certifications'] = escaped_resume_dict['certifications'].get('certifications', [])
 
 
 
             resume_latex = LatexToolBox.tex_resume_from_jinja_template(jinja_env=latex_jinja_env,
-                                                                       json_resume=escaped_resume_dict,
+                                                                       json_resume=flattened_resume,
                                                                        tex_jinja_template=build.resume_tex_template_path)
 
             
