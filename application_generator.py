@@ -587,7 +587,10 @@ class JobApplicationBuilder:
         try:
             import shutil
             if build.job_content_path:
-                shutil.move(build.job_content_path, build.get_job_doc_path())
+                if not os.path.exists(build.job_content_path):
+                    logger.warning(f"Job content path {build.job_content_path} does not exist.")
+                else:
+                    shutil.move(build.job_content_path, build.get_job_doc_path())
             logger.info("Temporary files cleaned up successfully.")
         except Exception as e:
             logger.error(f"Error during cleanup: {e}", exc_info=True)
