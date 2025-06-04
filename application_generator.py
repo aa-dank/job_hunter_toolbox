@@ -1,3 +1,4 @@
+import difflib
 import jinja2
 import json
 import os
@@ -368,7 +369,7 @@ class JobApplicationBuilder:
                 json_parser = JsonOutputParser(pydantic_object=prompt_info["schema"])
                 
                 # Extract the list of items for the current section from build.parsed_user_data
-                # e.g., for resume_key="experiences", user_section_container is build.parsed_user_data.get("experiences")
+                # e.g., for resume_key="experiences", user_section_container = build.parsed_user_data.get("experiences")
                 # which would be a dict like {"work_experience": [...]}. We need the list part.
                 user_section_container = build.parsed_user_data.get(resume_key) 
                 actual_user_data_list = []
@@ -535,7 +536,7 @@ class JobApplicationBuilder:
             logger.error(f"Error generating cover letter: {e}", exc_info=True)
             raise
 
-    def validate_resume_json(self, build: JobApplicationBuild):
+    def validate_resume_json(self, build: JobApplicationBuild, print_viz_changes: bool = False):
         """
         Validates the generated resume JSON against the original user data to detect and correct hallucinations.
 
@@ -576,6 +577,20 @@ class JobApplicationBuilder:
                 json.dump(validated_resume, file, indent=4)
 
             build.resume_details_dict = validated_resume
+
+            if print_viz_changes:
+                original = json.dumps(build.parsed_user_data, indent=4).splitlines()
+                validated = json.dumps(validated_resume, indent=4).splitlines()
+                diff = difflib.unified_diff(
+                    original,
+                    validated,
+                    fromfile="original_user_data",
+                    tofile="validated_resume",
+                    lineterm=""
+                )
+                print("\n".join(diff))
+                logger.info("Validation diff printed to terminal.")
+
             return build
 
         except Exception as e:
