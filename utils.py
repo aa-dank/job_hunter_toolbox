@@ -1,4 +1,5 @@
 import jinja2
+import logging
 import os
 import re
 import shutil
@@ -199,13 +200,36 @@ class LatexToolBox:
         return fonts, font_commands
 
     @staticmethod
-    def compile_latex_to_pdf(tex_filepath: str,
+    def compile_resume_latex_to_pdf(tex_filepath: str,
                              cls_filepath: str,
                              output_destination_path: str,
                              latex_engine: str = None):
-
+        """
+        Compiles a LaTeX resume file into a PDF document.
+        
+        This method handles the entire LaTeX compilation process including:
+        1. Resolving and copying the required .cls file to the output directory
+        2. Detecting which LaTeX engine to use (xelatex or pdflatex)
+        3. Running the LaTeX compiler twice to ensure proper rendering of references
+        4. Handling compilation errors and reporting them
+        
+        Args:
+            tex_filepath (str): Path to the LaTeX (.tex) file to compile
+            cls_filepath (str): Path to the LaTeX class (.cls) file needed for compilation
+            output_destination_path (str): Directory where the output PDF and intermediate files will be saved
+            latex_engine (str, optional): LaTeX engine to use ('xelatex' or 'pdflatex'). 
+                                         If None, will be auto-detected based on fontspec package usage.
+        
+        Returns:
+            bool: True if compilation was successful, False otherwise
+            
+        Raises:
+            FileNotFoundError: If required files cannot be found
+            RuntimeError: If LaTeX compilation fails
+        """
+        logger = logging.getLogger(__name__)
+        
         try:
-            # … existing setup …
             # Resolve cls_filepath as before…
             if not os.path.exists(cls_filepath):
                 project_dir = os.path.dirname(os.path.abspath(__file__))
@@ -239,27 +263,35 @@ class LatexToolBox:
 
             # Run compilation
             cmd = [latex_engine, "-interaction=nonstopmode", tex_filename]
-            for _ in range(2):
+            logger.info(f"Running LaTeX compilation with command: {' '.join(cmd)}")
+            for i in range(2):
                 result = subprocess.run(
                     cmd,
                     cwd=output_destination_path,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE
                 )
-                if result.returncode != 0:
-                    message = f"LaTeX compilation failed.\nCommand: {' '.join(cmd)}\nstderr: {result.stderr.decode()}\nstdout: {result.stdout.decode()}"
-                    raise RuntimeError(message)
+                
+                # Log the results of the subprocess run
+                if result.returncode == 0:
+                    logger.info(f"LaTeX compilation pass {i+1} succeeded.")
+                    logger.info(f"Command: {' '.join(cmd)}")
+                    logger.debug(f"Output: {result.stdout.decode()[:200]}...")  # Show first 200 chars of output
+                else:
+                    error_message = f"LaTeX compilation failed on pass {i+1}.\nCommand: {' '.join(cmd)}\nstderr: {result.stderr.decode()}\nstdout: {result.stdout.decode()}"
+                    logger.error(error_message)
+                    raise RuntimeError(error_message)
 
             return True
 
         except FileNotFoundError as e:
-            print(f"File not found: {e}")
+            logger.error(f"File not found: {e}")
             return False
         except RuntimeError as e:
-            print(f"Compilation error: {e}")
+            logger.error(f"Compilation error: {e}")
             return False
         except Exception as e:
-            print(f"Unexpected error: {e}")
+            logger.error(f"Unexpected error: {e}")
             return False
 
     @staticmethod
@@ -272,4 +304,4 @@ class LatexToolBox:
                 if os.path.exists(aux_file):
                     os.remove(aux_file)
             except Exception as e:
-                print(f"Warning: Could not remove {ext} file: {e}")    
+                print(f"Warning: Could not remove {ext} file: {e}")

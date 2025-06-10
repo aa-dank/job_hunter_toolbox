@@ -117,9 +117,6 @@ def vector_embedding_similarity(llm, document1: str, document2: str) -> float:
 
     return emb_sem.mean()
 
-
-    pass
-
 def normalize_text(text: str) -> list:
     """Normalize the input text.
 
