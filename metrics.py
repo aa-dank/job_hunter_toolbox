@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics import pairwise
+from sentence_transformers import SentenceTransformer
 from zlm.utils.utils import key_value_chunking
 
 import nltk
@@ -150,4 +151,25 @@ def normalize_text(text: str) -> list:
     # lemmatizer=WordNetLemmatizer()
     # words=[lemmatizer.lemmatize(word) for word in words]
     
-    return words 
+    return words
+
+def sentence_transformer_similarity(document1: str, document2: str, model: SentenceTransformer = None) -> float:
+    """Calculate the cosine similarity between two documents using Sentence Transformers.
+
+    Args:
+        document1 (str): The first document.
+        document2 (str): The second document.
+
+    Returns:
+        float: The cosine similarity between the two documents.
+    """
+    if model is None:
+        model = SentenceTransformer('all-MiniLM-L6-v2')
+
+    # Encode the documents
+    embeddings = model.encode([document1, document2])
+
+    # Calculate cosine similarity
+    cosine_similarity_score = pairwise.cosine_similarity([embeddings[0]], [embeddings[1]])
+
+    return cosine_similarity_score.item()

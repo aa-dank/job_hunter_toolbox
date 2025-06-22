@@ -276,9 +276,9 @@ class LatexToolBox:
                 if result.returncode == 0:
                     logger.info(f"LaTeX compilation pass {i+1} succeeded.")
                     logger.info(f"Command: {' '.join(cmd)}")
-                    logger.debug(f"Output: {result.stdout.decode()[:200]}...")  # Show first 200 chars of output
+                    logger.info(f"Output: {result.stdout.decode()[:200]}...")  # Show first 200 chars of output
                 else:
-                    error_message = f"LaTeX compilation failed on pass {i+1}.\nCommand: {' '.join(cmd)}\nstderr: {result.stderr.decode()}\nstdout: {result.stdout.decode()}"
+                    error_message = f"   failed on pass {i+1}.\nCommand: {' '.join(cmd)}\nstderr: {result.stderr.decode()}\nstdout: {result.stdout.decode()}"
                     logger.error(error_message)
                     raise RuntimeError(error_message)
 
@@ -296,7 +296,21 @@ class LatexToolBox:
 
     @staticmethod
     def cleanup_latex_files(output_dir: str, base_name: str):
-        """Removes auxiliary LaTeX files after compilation."""
+        """
+        Removes auxiliary files generated during LaTeX compilation.
+
+        This function deletes common temporary files (such as .aux, .log, .out, .toc, .synctex.gz)
+        that are created when compiling a LaTeX document. It helps keep the output directory clean
+        by removing these files after the PDF has been generated.
+
+        Args:
+            output_dir (str): The directory where the LaTeX files are located.
+            base_name (str): The base name of the LaTeX file (without extension).
+
+        Example:
+            cleanup_latex_files('/path/to/output', 'resume')
+            # This will attempt to remove files like '/path/to/output/resume.aux', etc.
+        """
         extensions = [".aux", ".log", ".out", ".toc", ".synctex.gz"]
         for ext in extensions:
             try:
