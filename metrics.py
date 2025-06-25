@@ -3,18 +3,10 @@ import json
 import math
 import numpy as np
 import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
+
 from sklearn.metrics import pairwise
 from sentence_transformers import SentenceTransformer
-from zlm.utils.utils import key_value_chunking
 
-import nltk
-from nltk.corpus import stopwords
-from nltk.stem import PorterStemmer, WordNetLemmatizer
-from nltk.tokenize import word_tokenize
-nltk.download('averaged_perceptron_tagger')
-nltk.download('stopwords')
-nltk.download('punkt')
 
 def remove_urls(list_of_strings):
     """Removes strings containing URLs from a list using regular expressions."""
@@ -92,6 +84,9 @@ def cosine_similarity(document1: str, document2: str) -> float:
     Returns:
         float: The cosine similarity between the two documents.
     """
+    from sklearn.feature_extraction.text import TfidfVectorizer
+
+    
     # Create a TF-IDF vectorizer
     vectorizer = TfidfVectorizer()
 
@@ -105,6 +100,46 @@ def cosine_similarity(document1: str, document2: str) -> float:
     return cosine_similarity_score.item()
 
 def vector_embedding_similarity(llm, document1: str, document2: str) -> float:
+    """Calculate similarity between two documents using vector embeddings from a language model.
+
+    This function converts JSON string documents into key-value pairs, gets embeddings using the provided
+    language model, and calculates the cosine similarity between the embeddings.
+
+    Args:
+        llm: The language model used to generate embeddings.
+        document1 (str): The first document as a JSON string.
+        document2 (str): The second document as a JSON string.
+
+    Returns:
+        float: The mean cosine similarity between the document embeddings.
+    """
+    
+    def key_value_chunking(data, prefix=""):
+        """Chunk a dictionary or list into key-value pairs.
+
+        Args:
+            data (dict or list): The data to chunk.
+            prefix (str, optional): The prefix to use for the keys. Defaults to "".
+
+        Returns:
+            A list of strings representing the chunked key-value pairs.
+        """
+        chunks = []
+        stop_needed = lambda value: '.' if not isinstance(value, (str, int, float, bool, list)) else ''
+        
+        if isinstance(data, dict):
+            for key, value in data.items():
+                if value is not None:
+                    chunks.extend(key_value_chunking(value, prefix=f"{prefix}{key}{stop_needed(value)}"))
+        elif isinstance(data, list):
+            for index, value in enumerate(data):
+                if value is not None:
+                    chunks.extend(key_value_chunking(value, prefix=f"{prefix}_{index}{stop_needed(value)}"))
+        else:
+            if data is not None:
+                chunks.append(f"{prefix}: {data}")
+        
+        return chunks
     document1 = key_value_chunking(json.loads(document1))
     document2 = key_value_chunking(json.loads(document2))
     
@@ -130,6 +165,17 @@ def normalize_text(text: str) -> list:
     Returns:
         list: The list of normalized words.
     """    
+    # Import NLTK libraries only when needed
+    import nltk
+    from nltk.corpus import stopwords
+    from nltk.stem import PorterStemmer
+    from nltk.tokenize import word_tokenize
+    
+    # Download NLTK data if needed
+    nltk.download('averaged_perceptron_tagger', quiet=True)
+    nltk.download('stopwords', quiet=True)
+    nltk.download('punkt', quiet=True)
+    
     # Step 1: Tokenization
     words = word_tokenize(text)
 
