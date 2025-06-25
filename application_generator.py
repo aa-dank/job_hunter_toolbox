@@ -10,13 +10,16 @@ from datetime import datetime
 from langchain_core.output_parsers import JsonOutputParser
 from langchain.prompts import PromptTemplate
 from markitdown import MarkItDown
-from models import LLMProvider
-from generation_schemas import Achievements, Certifications, Educations, Experiences, JobDetails, Projects, ResumeSchema, SkillSections
 from pathlib import Path
+
+# local imports
+from generation_schemas import Achievements, Certifications, Educations, Experiences, JobDetails, Projects, ResumeSchema, SkillSections
+from logger import setup_logger
+from metrics import sentence_transformer_similarity
+from models import LLMProvider
 from prompts.extraction_prompts import RESUME_DETAILS_EXTRACTOR, JOB_DETAILS_EXTRACTOR, COVER_LETTER_GENERATOR
 from prompts.resume_section_prompts import EXPERIENCE, SKILLS, PROJECTS, EDUCATIONS, CERTIFICATIONS, ACHIEVEMENTS, RESUME_WRITER_PERSONA
 from utils import LatexToolBox, text_to_pdf
-from logger import setup_logger
 
 # Initialize logger
 logger = setup_logger(name="ApplicationGenerator", log_file="application_generator.log")
@@ -184,6 +187,7 @@ class JobApplicationBuilder:
         """
         self.llm = llm
         self.md_converter = MarkItDown()
+        content_scores: dict = None
 
     def extract_job_content(self, build: JobApplicationBuild):
         logger.info("Extracting job content from the provided file.")
@@ -312,7 +316,27 @@ class JobApplicationBuilder:
         except Exception as e:
             logger.error(f"Error extracting user data: {e}", exc_info=True)
             raise
-    
+
+    def score_resume_content(self, build: JobApplicationBuild):
+        """
+        Score resume content items based on similarity to job description.
+        
+        Args:
+            build: JobApplicationBuild object with parsed job and user data
+            
+        Returns:
+            JobApplicationBuild: Updated build with content_scores added
+        """
+        if not build.parsed_job_details or not build.parsed_user_data:
+            logger.warning("Cannot score content: missing job details or user data")
+            return build
+        
+        try:
+            pass
+        except Exception as e:
+            pass
+
+
     def generate_resume_json(self, build: JobApplicationBuild):
         logger.info("Generating resume JSON from job details and user data.")
         try:
@@ -347,7 +371,7 @@ class JobApplicationBuilder:
 
             # Other Sections that require LLM processing
             # section_map: key is for resume_details and build.parsed_user_data (ResumeSchema keys)
-            #              value is for resume_section_prompt_map and the key within the LLM's JSON response for that section
+            # value is for resume_section_prompt_map and the key within the LLM's JSON response for that section
             section_map = {
                 "experiences": "work_experience",
                 "projects": "projects",
