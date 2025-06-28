@@ -101,6 +101,7 @@ class JobApplicationBuild:
     resume_cls_path: str = "resume.cls"
     output_destination: str = "output_files"
     timestamp: str = datetime.now().strftime(r"%Y%m%d%H%M%S")
+    enable_point_scoring: bool = False # Whether to enable scoring of description points in experiences and projects
     
     # Attributes to be populated by the builder methods during the application generation process
     org: str = None
@@ -187,7 +188,7 @@ class JobApplicationBuilder:
         """
         self.llm = llm
         self.md_converter = MarkItDown()
-        content_scores: dict = None
+        self.similarity_scoring_model: str = "all-MiniLM-L6-v2"
 
     def extract_job_content(self, build: JobApplicationBuild):
         logger.info("Extracting job content from the provided file.")
@@ -317,24 +318,75 @@ class JobApplicationBuilder:
             logger.error(f"Error extracting user data: {e}", exc_info=True)
             raise
 
-    def score_resume_content(self, build: JobApplicationBuild):
+    def score_description_points(self, build: JobApplicationBuild, model: str = None):
         """
-        Score resume content items based on similarity to job description.
+        Score individual description points in experiences and projects based on relevance to the job.
         
         Args:
             build: JobApplicationBuild object with parsed job and user data
             
         Returns:
-            JobApplicationBuild: Updated build with content_scores added
+            JobApplicationBuild: Updated build with scored description points
         """
+        
+        def score_points_for_section(items, description_key, job_text, model):
+            """
+            Scores each point in the description list of each item in a section.
+            Modifies the items in-place by adding a 'scored_description' field.
+            """
+            from metrics import sentence_transformer_similarity
+
+            for item in items:
+                points = []
+                for point in item.get(description_key, []):
+                    if not point.strip():
+                        continue
+                    point_score = sentence_transformer_similarity(
+                        document1=point,
+                        document2=job_text,
+                        model=model
+                    )
+                    points.append({
+                        "text": point,
+                        "score": point_score
+                    })
+        
         if not build.parsed_job_details or not build.parsed_user_data:
             logger.warning("Cannot score content: missing job details or user data")
             return build
         
+        if not build.enable_point_scoring:
+            logger.info("Description point scoring disabled, skipping")
+            return build
+        
+        from metrics import sentence_transformer_similarity
+
         try:
-            pass
+            job_text = " ".join([
+                build.parsed_job_details.get("job_title", ""),
+                build.parsed_job_details.get("job_purpose", ""),
+                " ".join(build.parsed_job_details.get("keywords", [])),
+                " ".join(build.parsed_job_details.get("job_duties_and_responsibilities", [])),
+                " ".join(build.parsed_job_details.get("required_qualifications", [])),
+                " ".join(build.parsed_job_details.get("preferred_qualifications", []))
+            ])
+
+            # Score experiences
+            experiences = build.parsed_user_data.get("experiences", {}).get("work_experience", [])
+            score_points_for_section(experiences, "description", job_text, model)
+
+            # Score projects
+            projects = build.parsed_user_data.get("projects", {}).get("projects", [])
+            score_points_for_section(projects, "description", job_text, model)
+
+            # To add more sections in the future, just call:
+            # score_points_for_section(other_items, "description", job_text, model)
+
+            return build
+
         except Exception as e:
-            pass
+            logger.error(f"Error scoring description points: {e}", exc_info=True)
+            return build
 
 
     def generate_resume_json(self, build: JobApplicationBuild):
@@ -348,6 +400,9 @@ class JobApplicationBuilder:
 
             if build.resume_details_dict and build.resume_json_path:
                 return build
+            
+            if build.enable_point_scoring:
+                build = self.score_description_points(build)
             
             resume_details = dict()
             
