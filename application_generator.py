@@ -386,6 +386,7 @@ class JobApplicationBuilder:
 
         except Exception as e:
             logger.error(f"Error scoring description points: {e}", exc_info=True)
+            build.enable_point_scoring = False
             return build
 
 
@@ -456,10 +457,29 @@ class JobApplicationBuilder:
                     actual_user_data_list = user_section_container.get(map_key, [])
                 elif resume_key == "achievements" and isinstance(user_section_container, list): # achievements might be a direct list if schema was simpler before
                     actual_user_data_list = user_section_container
+                
+                scoring_instructions = ""
+                if build.enable_point_scoring and resume_key in ["experiences", "projects"]:
+                    import copy
+                    actual_user_data_list = copy.deepcopy(actual_user_data_list)
 
+                    # Replace the descriptions with scored descriptions for the LLM
+                    for item in actual_user_data_list:
+                        if "scored_description" in item:
+                            # Add the scores to the description text for the LLM
+                            item["description"] = [f"{p['text']} [relevance: {p['score']:.2f}]" 
+                                                for p in item["scored_description"]]
+                    
+                    # Add instructions about scores
+                    scoring_instructions = (
+                        f"\nIMPORTANT: Description points include relevance scores in format [relevance: X.XX]. "
+                        f"Higher scores indicate stronger relevance to the job requirements. "
+                        f"Prioritize points with higher scores when creating the resume, and make sure to REMOVE "
+                        f"the relevance notation in your final output."
+                    )
 
                 prompt = PromptTemplate(
-                    template=prompt_info["prompt"],
+                    template=prompt_info["prompt"] + scoring_instructions,
                     partial_variables={"format_instructions": json_parser.get_format_instructions()},
                     template_format="jinja2",
                     validate_template=False
