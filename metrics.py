@@ -4,9 +4,131 @@ import math
 import numpy as np
 import pandas as pd
 
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from enum import Enum
 from sklearn.metrics import pairwise
 from sentence_transformers import SentenceTransformer
+from typing import Any, Dict, Optional, Union, List
 
+class ScoringMethodType(Enum):
+    """Enumeration of available scoring method types."""
+    SEMANTIC = "semantic"
+    LEXICAL = "lexical" 
+    STATISTICAL = "statistical"
+    HYBRID = "hybrid"
+
+@dataclass
+class ScoringStrategy(ABC):
+    """
+    Abstract base class for resume feature scoring strategies.
+    
+    This class defines the interface for different scoring methods used to evaluate
+    the relevance of resume content against job descriptions.
+    """
+    
+    # Core attributes
+    name: str
+    description: str
+    method_type: ScoringMethodType
+    
+    # Scoring guidance
+    score_range: tuple[float, float] = (0.0, 1.0)
+    higher_is_better: bool = True
+    interpretation_guide: str = ""
+    
+    # Usage instructions for LLM
+    llm_usage_instructions: str = ""
+    
+    # Configuration
+    config: Dict[str, Any] = None
+    
+    def __post_init__(self):
+        if self.config is None:
+            self.config = {}
+        
+        # Set default LLM instructions if not provided
+        if not self.llm_usage_instructions:
+            direction = "higher" if self.higher_is_better else "lower"
+            self.llm_usage_instructions = (
+                f"Each item includes a relevance score in format [relevance: X.XX] "
+                f"ranging from {self.score_range[0]:.1f} to {self.score_range[1]:.1f}. "
+                f"{direction.capitalize()} scores indicate stronger relevance to the job. "
+                f"Prioritize items with {direction} scores and remove the score notation in your output."
+            )
+    
+    @abstractmethod
+    def calculate_score(self, reference_text: str, candidate_text: str, **kwargs) -> float:
+        """
+        Calculate similarity/relevance score between two texts.
+        
+        Args:
+            reference_text: The reference text (e.g., job description)
+            candidate_text: The candidate text (e.g., resume bullet point)
+            **kwargs: Additional arguments specific to the scoring method
+            
+        Returns:
+            float: Similarity score within the defined range
+        """
+        pass
+    
+    def batch_score(self, reference_text: str, candidate_texts: List[str], **kwargs) -> List[float]:
+        """
+        Score multiple candidate texts against a single reference.
+        
+        Default implementation uses individual scoring, but can be overridden
+        for more efficient batch processing.
+        """
+        return [self.calculate_score(reference_text, text, **kwargs) for text in candidate_texts]
+    
+    def format_for_llm(self, text: str, score: float) -> str:
+        """Format text with score for LLM consumption."""
+        return f"{text} [relevance: {score:.2f}]"
+    
+    def get_prompt_instructions(self) -> str:
+        """Get instructions to append to LLM prompts."""
+        return self.llm_usage_instructions
+
+
+class SentenceTransformerStrategy(ScoringStrategy):
+    """Scoring strategy using SentenceTransformer embeddings."""
+    
+    def __init__(self, 
+                 model_name: str = "all-MiniLM-L6-v2",
+                 name: str = "SentenceTransformer Semantic Similarity",
+                 description: str = "Uses transformer-based embeddings for semantic similarity"):
+        
+        super().__init__(
+            name=name,
+            description=description,
+            method_type=ScoringMethodType.SEMANTIC,
+            interpretation_guide="Measures semantic similarity using deep learning embeddings",
+            config={"model_name": model_name}
+        )
+        
+        self._model = None
+    
+    @property
+    def model(self):
+        """Lazy loading of the SentenceTransformer model."""
+        if self._model is None:
+            from sentence_transformers import SentenceTransformer
+            self._model = SentenceTransformer(self.config["model_name"])
+        return self._model
+    
+    def calculate_score(self, reference_text: str, candidate_text: str, **kwargs) -> float:
+        """Calculate semantic similarity using sentence transformers."""
+        from sklearn.metrics.pairwise import cosine_similarity
+        import numpy as np
+        
+        # Get embeddings
+        embeddings = self.model.encode([reference_text, candidate_text])
+        
+        # Calculate cosine similarity
+        similarity = cosine_similarity([embeddings[0]], [embeddings[1]])[0][0]
+        
+        # Ensure score is in valid range
+ 
 
 def remove_urls(list_of_strings):
     """Removes strings containing URLs from a list using regular expressions."""

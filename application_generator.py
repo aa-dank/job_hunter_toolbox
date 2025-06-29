@@ -66,7 +66,6 @@ def extract_pdf_text(pdf_path: str): #kinda deprecated
         
         return resume_text
 
-
 @dataclass
 class JobApplicationBuild:
     """
