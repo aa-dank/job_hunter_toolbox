@@ -11,11 +11,12 @@ from langchain_core.output_parsers import JsonOutputParser
 from langchain.prompts import PromptTemplate
 from markitdown import MarkItDown
 from pathlib import Path
+from typing import Optional
 
 # local imports
 from generation_schemas import Achievements, Certifications, Educations, Experiences, JobDetails, Projects, ResumeSchema, SkillSections
 from logger import setup_logger
-from metrics import sentence_transformer_similarity
+from metrics import ScoringStrategy
 from models import LLMProvider
 from prompts.extraction_prompts import RESUME_DETAILS_EXTRACTOR, JOB_DETAILS_EXTRACTOR, COVER_LETTER_GENERATOR
 from prompts.resume_section_prompts import EXPERIENCE, SKILLS, PROJECTS, EDUCATIONS, CERTIFICATIONS, ACHIEVEMENTS, RESUME_WRITER_PERSONA
@@ -100,7 +101,7 @@ class JobApplicationBuild:
     resume_cls_path: str = "resume.cls"
     output_destination: str = "output_files"
     timestamp: str = datetime.now().strftime(r"%Y%m%d%H%M%S")
-    enable_point_scoring: bool = False # Whether to enable scoring of description points in experiences and projects
+    scoring_strategy: Optional[ScoringStrategy] = None #
     
     # Attributes to be populated by the builder methods during the application generation process
     org: str = None
@@ -188,6 +189,7 @@ class JobApplicationBuilder:
         self.llm = llm
         self.md_converter = MarkItDown()
         self.similarity_scoring_model: str = "all-MiniLM-L6-v2"
+        
 
     def extract_job_content(self, build: JobApplicationBuild):
         logger.info("Extracting job content from the provided file.")
@@ -354,7 +356,7 @@ class JobApplicationBuilder:
             logger.warning("Cannot score content: missing job details or user data")
             return build
         
-        if not build.enable_point_scoring:
+        if not build.scoring_strategy:
             logger.info("Description point scoring disabled, skipping")
             return build
         
@@ -385,7 +387,7 @@ class JobApplicationBuilder:
 
         except Exception as e:
             logger.error(f"Error scoring description points: {e}", exc_info=True)
-            build.enable_point_scoring = False
+            build.scoring_strategy = None
             return build
 
 
@@ -401,7 +403,7 @@ class JobApplicationBuilder:
             if build.resume_details_dict and build.resume_json_path:
                 return build
             
-            if build.enable_point_scoring:
+            if build.scoring_strategy:
                 build = self.score_description_points(build)
             
             resume_details = dict()
@@ -458,7 +460,7 @@ class JobApplicationBuilder:
                     actual_user_data_list = user_section_container
                 
                 scoring_instructions = ""
-                if build.enable_point_scoring and resume_key in ["experiences", "projects"]:
+                if build.scoring_strategy and resume_key in ["experiences", "projects"]:
                     import copy
                     actual_user_data_list = copy.deepcopy(actual_user_data_list)
 
