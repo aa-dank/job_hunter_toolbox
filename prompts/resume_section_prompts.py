@@ -173,9 +173,9 @@ Instructions:
   2.3. Action Verbs: Showcase soft skills with strong, active verbs.
   2.4. Honesty: Prioritize truthfulness and objective language.
   2.5. Specificity: Prioritize relevance to the specific job over general achievements.
-  {{ if includes_relevance_scores}}
+  {% if includes_relevance_scores %}
     2.7. If bullet points include relevance scores in format [relevance: X.XX], prioritize those with higher scores. Remove the relevance notation in your output.
-  {{ endif }}
+  {% endif %}
 3. Style:
   3.1. Clarity: Clear expression trumps impressiveness.
   3.2. Voice: Use active voice whenever possible.
@@ -264,9 +264,9 @@ Instructions:
   2.4. Action Verbs: Showcase soft skills with strong, active verbs.
   2.5. Honesty: Prioritize truthfulness and objective language.
   2.6. Specificity: Prioritize relevance to the specific job over general achievements.
-  {{ if includes_relevance_scores}}
+  {% if includes_relevance_scores %}
     2.7. If bullet points include relevance scores in format [relevance: X.XX], prioritize those with higher scores. Remove the relevance notation in your output.
-  {{ endif }}
+  {% endif %}
 3. Style:
   3.1. Clarity: Clear expression trumps impressiveness.
   3.2. Voice: Use active voice whenever possible.

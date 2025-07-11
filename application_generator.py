@@ -481,7 +481,8 @@ class JobApplicationBuilder:
 
                 prompt = PromptTemplate(
                     template=prompt_info["prompt"] + scoring_instructions,
-                    partial_variables={"format_instructions": json_parser.get_format_instructions()},
+                    partial_variables={"format_instructions": json_parser.get_format_instructions(),
+                                       "includes_relevance_scores": build.scoring_strategy is not None},
                     template_format="jinja2",
                     validate_template=False
                 ).format(section_data=json.dumps(actual_user_data_list), 
