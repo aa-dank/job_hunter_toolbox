@@ -1,3 +1,5 @@
+# prompts/validation_prompts.py
+
 RESUME_VALIDATION_PROMPT = """
 <task>
 Compare the original user data with the generated resume JSON to detect and correct hallucinations or inaccuracies. Ensure that the generated resume content aligns with the original user data and does not include fabricated or unsupported information.

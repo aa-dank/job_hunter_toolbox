@@ -70,7 +70,7 @@ class ScoringStrategy(ABC):
         Returns:
             float: Similarity score within the defined range
         """
-        pass
+        raise NotImplementedError("Subclasses must implement this method.")
     
     def batch_score(self, reference_text: str, candidate_texts: List[str], **kwargs) -> List[float]:
         """
@@ -119,16 +119,31 @@ class SentenceTransformerStrategy(ScoringStrategy):
     def calculate_score(self, reference_text: str, candidate_text: str, **kwargs) -> float:
         """Calculate semantic similarity using sentence transformers."""
         from sklearn.metrics.pairwise import cosine_similarity
-        import numpy as np
-        
+
         # Get embeddings
-        embeddings = self.model.encode([reference_text, candidate_text])
+        emb_ref, emb_cand = self.model.encode([reference_text, candidate_text])
+        sim = cosine_similarity([emb_ref], [emb_cand])[0][0]
         
-        # Calculate cosine similarity
-        similarity = cosine_similarity([embeddings[0]], [embeddings[1]])[0][0]
+        # Clamp into [score_range]
+        score = float(max(self.score_range[0], min(sim, self.score_range[1])))
+        return score
+
+    def batch_score(self, reference_text: str, candidate_texts: list[str], **kwargs) -> list[float]:
+        """Efficient batch scoring for multiple candidates."""
+        from sklearn.metrics.pairwise import cosine_similarity
+
+        if not candidate_texts:
+            return []
+
+        # Encode all at once
+        embeddings = self.model.encode([reference_text] + candidate_texts)
+        ref_emb = embeddings[0:1]
+        cand_embs = embeddings[1:]
+        sims = cosine_similarity(ref_emb, cand_embs)[0]
         
-        # Ensure score is in valid range
- 
+        # Clamp each into [score_range]
+        return [float(max(self.score_range[0], min(s, self.score_range[1]))) for s in sims]
+        
 
 def remove_urls(list_of_strings):
     """Removes strings containing URLs from a list using regular expressions."""

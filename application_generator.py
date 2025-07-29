@@ -80,6 +80,9 @@ class JobApplicationBuild:
         resume_cls_path (str): Path to the LaTeX class file for the resume.
         output_destination (str): Directory for storing output files.
         timestamp (str): Timestamp used to distinguish output files.
+        scoring_strategy (Optional[ScoringStrategy]): Strategy for scoring and prioritizing 
+            description points in experiences and projects based on relevance to job requirements. 
+            If None, scoring is disabled.
         org (str): Name of the organization for which the job is applied.
         job_title (str): Parsed or assigned job title.
         parsed_job_details (dict): Extracted job details from the job content file.
@@ -101,8 +104,8 @@ class JobApplicationBuild:
     resume_cls_path: str = "resume.cls"
     output_destination: str = "output_files"
     timestamp: str = datetime.now().strftime(r"%Y%m%d%H%M%S")
-    scoring_strategy: Optional[ScoringStrategy] = None #
-    
+    scoring_strategy: Optional[ScoringStrategy] = None  # Strategy for scoring and prioritization of description points by relevance
+
     # Attributes to be populated by the builder methods during the application generation process
     org: str = None
     job_title: str = None

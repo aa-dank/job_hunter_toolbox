@@ -1,3 +1,5 @@
+# prompts/extraction_prompts.py
+
 
 JOB_DETAILS_EXTRACTOR = """
 <task>
