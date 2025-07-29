@@ -395,6 +395,22 @@ class JobApplicationBuilder:
 
 
     def generate_resume_json(self, build: JobApplicationBuild):
+        """
+        Generate a resume JSON by combining parsed user data and job details.
+
+        Args:
+            build (JobApplicationBuild): Contains parsed_user_data and parsed_job_details,
+                and optional scoring_strategy for relevance scoring.
+
+        Returns:
+            JobApplicationBuild: The updated build object with:
+                - resume_details_dict: The generated resume JSON structure.
+                - resume_json_path: Filepath where the resume JSON is saved.
+
+        Raises:
+            ValueError: If parsed_user_data or parsed_job_details are missing.
+            Exception: For any other errors during resume JSON generation.
+        """
         logger.info("Generating resume JSON from job details and user data.")
         try:
             if not build.parsed_user_data:
@@ -531,6 +547,21 @@ class JobApplicationBuilder:
             raise
     
     def resume_json_to_resume_tex(self, build: JobApplicationBuild):
+        """
+        Convert the generated resume JSON into a LaTeX document and save it.
+
+        Args:
+            build (JobApplicationBuild): Contains resume_details_dict and resume_tex_template_path.
+
+        Returns:
+            JobApplicationBuild: The updated build object with:
+                - resume_latex_text: The rendered LaTeX string.
+                - resume_tex_path: Filepath where the .tex file is saved.
+
+        Raises:
+            ValueError: If resume_details_dict is missing.
+            Exception: For any other errors during LaTeX conversion.
+        """
         logger.info("Converting resume JSON to LaTeX format.")
         try:
             if not build.resume_details_dict:
@@ -596,6 +627,23 @@ class JobApplicationBuilder:
             raise
 
     def generate_cover_letter(self, build: JobApplicationBuild, custom_instructions: str = "", need_pdf: bool = True):
+        """
+        Generate a cover letter text (and optional PDF) tailored to the job description.
+
+        Args:
+            build (JobApplicationBuild): Contains parsed_job_details and parsed_user_data.
+            custom_instructions (str): Additional instructions to pass to the LLM.
+            need_pdf (bool): Whether to produce a PDF version of the cover letter.
+
+        Returns:
+            JobApplicationBuild: The updated build object with:
+                - cover_letter_text: The generated cover letter text.
+                - cover_letter_path: Filepath to the .txt or .pdf file saved.
+
+        Raises:
+            ValueError: If parsed_job_details or parsed_user_data are missing.
+            Exception: For any other errors during cover letter generation.
+        """
         logger.info("Generating cover letter.")
         try:
             if not build.parsed_job_details or not build.parsed_user_data:
@@ -702,6 +750,21 @@ class JobApplicationBuilder:
             return None
 
     def cleanup_files(self, build: JobApplicationBuild):
+        """
+        Move temporary job content file into the output directory for cleanup.
+
+        Args:
+            build (JobApplicationBuild): Contains job_content_path and output directory metadata.
+
+        Returns:
+            None
+
+        Side Effects:
+            Moves the job_content_path file into the designated output directory.
+
+        Raises:
+            Exception: If file operations fail.
+        """
         logger.info("Cleaning up temporary files.")
         try:
             import shutil
