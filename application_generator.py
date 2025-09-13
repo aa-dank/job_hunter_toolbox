@@ -483,20 +483,16 @@ class JobApplicationBuilder:
                     import copy
                     actual_user_data_list = copy.deepcopy(actual_user_data_list)
 
-                    # Replace the descriptions with scored descriptions for the LLM
+                    # Replace descriptions with scored entries
                     for item in actual_user_data_list:
                         if "scored_description" in item:
-                            # Add the scores to the description text for the LLM
-                            item["description"] = [f"{p['text']} [relevance: {p['score']:.2f}]" 
-                                                for p in item["scored_description"]]
-                    
-                    # Add instructions about scores
-                    scoring_instructions = (
-                        f"\nIMPORTANT: Description points include relevance scores in format [relevance: X.XX]. "
-                        f"Higher scores indicate stronger relevance to the job requirements. "
-                        f"Prioritize points with higher scores when creating the resume, and make sure to REMOVE "
-                        f"the relevance notation in your final output."
-                    )
+                            item["description"] = [
+                                f"{p['text']} [relevance: {p['score']:.2f}]"
+                                for p in item["scored_description"]
+                            ]
+
+                    # Use the scoring strategy's own LLM instructions
+                    scoring_instructions = "\nIMPORTANT: " + build.scoring_strategy.get_prompt_instructions()
 
                 prompt = PromptTemplate(
                     template=prompt_info["prompt"] + scoring_instructions,

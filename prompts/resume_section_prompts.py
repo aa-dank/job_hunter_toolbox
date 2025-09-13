@@ -37,7 +37,7 @@ Primary role: Craft exceptional resumes and cover letters tailored to specific j
 
 Note: Adapt these guidelines to each user's specific request, industry, and experience level.
 
-Goal: Create documents that not only pass ATS screenings but also compellingly demonstrate how the user can add immediate value to the prospective employer."""
+Goal: Create documents that not only pass ATS screenings but also compellingly demonstrate how the user fulfills posting requirements and will succeed in the role."""
 
 
 
@@ -57,9 +57,9 @@ Instructions:
   4.1. Voice: Use active voice whenever possible.
   4.2. Proofreading: Ensure impeccable spelling and grammar.
 
-<achievements>
-{{ section_data }}
-</achievements>
+<APPLICANT_ACHIEVEMENTS_DATA>
+{{ section_data if section_data else "None" }}
+</APPLICANT_ACHIEVEMENTS_DATA>
 
 <job_description>
 {{ job_description }}
@@ -83,15 +83,16 @@ Step to follow:
 1. Analyze my certification details to match job requirements.
 2. Create a JSON resume section that highlights strongest matches
 3. Optimize JSON section for clarity and relevance to the job description.
-4. Return nothing if there are no certifications. Do not include certifications that are not relevant to the job or not supported in the <Certifications> section.
+4. Return nothing if there are no certifications. Do not include certifications that are not relevant to the job or not supported in the 'Certifications' section.
 
 Instructions:
 1. Focus: Include relevant certifications aligned with the job description.
 2. Proofreading: Ensure impeccable spelling and grammar.
+3. Avoid hallucinating
 
-<CERTIFICATIONS>
-{{ section_data }}
-</CERTIFICATIONS>
+<APPLICANT_CERTIFICATIONS_DATA>
+{{ section_data if section_data else "None" }}
+</APPLICANT_CERTIFICATIONS_DATA>
 
 <job_description>
 {{ job_description }}
@@ -130,9 +131,9 @@ Instructions:
 - Aim for clear expression over impressiveness.
 - Prefer active voice over passive voice.
 
-<Education>
-{{ section_data }}
-</Education>
+<APPLICANT_EDUCATION_DATA>
+{{ section_data if section_data else "None" }}
+</APPLICANT_EDUCATION_DATA>
 
 <job_description>
 {{ job_description }}
@@ -170,11 +171,12 @@ Step to follow:
 Instructions:
 1. Focus: Craft three highly relevant project experiences aligned with the job description.
 2. Content:
-  2.1. Bullet points: 3 per experience, closely mirroring job requirements.
+  2.1. Bullet points: 4 per experience, closely mirroring job requirements. Preserve any project urls data.
   2.2. Storytelling: Utilize STAR methodology (Situation, Task, Action, Result) implicitly within each bullet point.
   2.3. Action Verbs: Showcase soft skills with strong, active verbs.
   2.4. Honesty: Prioritize truthfulness and objective language.
   2.5. Specificity: Prioritize relevance to the specific job over general achievements.
+  2.7. Coherence: Make sure the collective project experience presents a unified narrative that aligns with the job description. Avoid Redundancy.
   {% if includes_relevance_scores %}
     2.7. If bullet points include relevance scores in format [relevance: X.XX], prioritize those with higher scores. Remove the relevance notation in your output.
   {% endif %}
@@ -183,9 +185,9 @@ Instructions:
   3.2. Voice: Use active voice whenever possible.
   3.3. Proofreading: Ensure impeccable spelling and grammar.
 
-<PROJECTS>
-{{ section_data }}
-</PROJECTS>
+<APPLICANT_PROJECTS_DATA>
+{{ section_data if section_data else "None" }}
+</APPLICANT_PROJECTS_DATA>
 
 <job_description>
 {{ job_description }}
@@ -224,9 +226,10 @@ Instructions:
 - Specificity: Prioritize relevance to the specific job over general achievements.
 - Proofreading: Ensure impeccable spelling and grammar.
 
-<SKILL_SECTION>
-{{ section_data }}
-</SKILL_SECTION>
+<APPLICANT_SKILLS_DATA>
+{{ section_data if section_data else "None" }}
+</APPLICANT_SKILLS_DATA>
+
 
 <job_description>
 {{ job_description }}
@@ -266,17 +269,18 @@ Instructions:
   2.4. Action Verbs: Showcase soft skills with strong, active verbs.
   2.5. Honesty: Prioritize truthfulness and objective language.
   2.6. Specificity: Prioritize relevance to the specific job over general achievements.
+  2.7. Coherence: Make sure the collective work experience presents a unified narrative that aligns with the job description. Avoid Redundancy. 
   {% if includes_relevance_scores %}
-    2.7. If bullet points include relevance scores in format [relevance: X.XX], prioritize those with higher scores. Remove the relevance notation in your output.
+    2.8. If bullet points include relevance scores in format [relevance: X.XX], prioritize those with higher scores. Remove the relevance notation in your output.
   {% endif %}
 3. Style:
   3.1. Clarity: Clear expression trumps impressiveness.
   3.2. Voice: Use active voice whenever possible.
   3.3. Proofreading: Ensure impeccable spelling and grammar.
 
-<work_experience>
-{{ section_data }}
-</work_experience>
+<APPLICANT_WORK_EXPERIENCE_DATA>
+{{ section_data if section_data else "None" }}
+</APPLICANT_WORK_EXPERIENCE_DATA>
 
 <job_description>
 {{ job_description }}

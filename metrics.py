@@ -35,7 +35,6 @@ class ScoringStrategy(ABC):
     # Scoring guidance
     score_range: tuple[float, float] = (0.0, 1.0)
     higher_is_better: bool = True
-    interpretation_guide: str = ""
     
     # Usage instructions for LLM
     llm_usage_instructions: str = ""
@@ -102,7 +101,11 @@ class SentenceTransformerStrategy(ScoringStrategy):
             name=name,
             description=description,
             method_type=ScoringMethodType.SEMANTIC,
-            interpretation_guide="Measures semantic similarity using deep learning embeddings",
+            llm_usage_instructions=(
+                "Measures semantic similarity using embeddings from Sentence Transformers and cosine similarity. "
+                "Each point is tagged with [relevance: X.XX] within [0.0,1.0], where higher values mean greater relevance. "
+                "Use these scores to prioritize the most relevant items in the resume and omit the score notation in your final output."
+            ),
             config={"model_name": model_name}
         )
         
