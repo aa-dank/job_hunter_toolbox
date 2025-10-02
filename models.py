@@ -61,6 +61,10 @@ class LLMProvider(ABC):
 
 
 class ChatGPT(LLMProvider):
+    """
+    LLMProvider implementation using OpenAI's ChatCompletion API.
+    Automatically retries without custom temperature if unsupported by the model.
+    """
     def __init__(self, api_key, model, system_prompt, max_output_tokens=None, temperature=0.7):
         super().__init__(api_key, model, system_prompt, max_output_tokens, temperature)
         self.embedding_model = "text-embedding-ada-002"
@@ -69,29 +73,61 @@ class ChatGPT(LLMProvider):
         self.client = OpenAI(api_key=self.api_key)
     
     def get_response(self, prompt, need_json_output=False):
+        """
+        Get a chat response from the OpenAI model.
+        Retries without temperature if the model rejects custom temperature values.
+
+        Args:
+            prompt (str): The prompt string to send as user content.
+            need_json_output (bool): Whether to parse the response as JSON.
+
+        Returns:
+            str or dict: The model's response content, parsed JSON if requested.
+        """
         user_prompt = {"role": "user", "content": prompt}
 
-        try:
-            completion = self.client.chat.completions.create(
-                model=self.model,
-                messages = [self.system_prompt, user_prompt],
-                temperature=self.temperature,
-                max_tokens = self.max_output_tokens,
-                response_format = { "type": "json_object" } if need_json_output else None
-            )
+        # Build request parameters without sending null or unsupported values
+        params = {
+            "model": self.model,
+            "messages": [self.system_prompt, user_prompt],
+        }
+        if self.max_output_tokens is not None:
+            params["max_tokens"] = self.max_output_tokens
+        if need_json_output:
+            params["response_format"] = {"type": "json_object"}
+        if self.temperature is not None:
+            params["temperature"] = self.temperature
 
-            response = completion.choices[0].message
-            content = response.content.strip()
-            
-            if need_json_output:
-                return parse_json_markdown(content)
-            else:
-                return content
-        
+        try:
+            completion = self.client.chat.completions.create(**params)
         except Exception as e:
-            raise Exception(f"Error in ChatGPT API, {e}")
+            err = str(e)
+            # Retry without temperature if unsupported by the model
+            if "Unsupported value: 'temperature'" in err:
+                params.pop("temperature", None)
+                completion = self.client.chat.completions.create(**params)
+            else:
+                raise Exception(f"Error in ChatGPT API, {e}")
+
+        response = completion.choices[0].message
+        content = response.content.strip()
+
+        if need_json_output:
+            return parse_json_markdown(content)
+        return content
         
     def get_embedding(self, text, model=None, task_type="retrieval_document"):
+        """
+        Get embeddings for the given text using OpenAI embeddings API.
+
+        Args:
+            text (str): The text to embed.
+            model (str, optional): The embedding model to use. Defaults to None.
+            task_type (str): The task type for the embedding call.
+
+        Returns:
+            list[float]: The embedding vector for the input text.
+        """
         try:
             if model is None:
                 model = self.embedding_model
