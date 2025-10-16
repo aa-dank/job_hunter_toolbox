@@ -18,7 +18,8 @@ from generation_schemas import Achievements, Certifications, Educations, Experie
 from logger import setup_logger
 from metrics import ScoringStrategy
 from models import LLMProvider
-from prompts.extraction_prompts import RESUME_DETAILS_EXTRACTOR, JOB_DETAILS_EXTRACTOR, COVER_LETTER_GENERATOR
+from prompts.cover_letter_prompts import COVER_LETTER_GENERATOR
+from prompts.extraction_prompts import RESUME_DETAILS_EXTRACTOR, JOB_DETAILS_EXTRACTOR
 from prompts.resume_section_prompts import EXPERIENCE, SKILLS, PROJECTS, EDUCATIONS, CERTIFICATIONS, ACHIEVEMENTS, RESUME_WRITER_PERSONA
 from utils import LatexToolBox, text_to_pdf
 
@@ -145,6 +146,14 @@ class JobApplicationBuild:
             text = re.sub(r"[^a-zA-Z0-9]+", "", text)
             return text
 
+        if not self.org or not self.job_title:
+            logger.warning(
+                "Cannot build job document path without both organization and job title; org=%s, job_title=%s.",
+                self.org,
+                self.job_title,
+            )
+            raise ValueError("Organization and job title must be set before generating job document paths.")
+
         company_name = clean_string(self.org)
         job_title = clean_string(self.job_title)[:15]
         timestamp = self.timestamp
@@ -239,8 +248,23 @@ class JobApplicationBuilder:
                 ).format(job_description=job_content_str)
 
             job_details = self.llm.get_response(prompt=prompt, need_json_output=True)
-            build.org = job_details["company_name"]
-            build.job_title = job_details["job_title"]
+
+            if isinstance(job_details, dict):
+                company_name = job_details.get("company_name")
+                job_title = job_details.get("job_title")
+
+                if company_name:
+                    build.org = company_name
+                else:
+                    logger.warning("LLM response missing 'company_name'; leaving build.org unchanged.")
+
+                if job_title:
+                    build.job_title = job_title
+                else:
+                    logger.warning("LLM response missing 'job_title'; leaving build.job_title unchanged.")
+            else:
+                logger.warning("LLM response for job details was not a dictionary; organization and job title not set.")
+
             build.parsed_job_details = job_details
 
             structured_job_details_filepath = build.get_job_doc_path(file_type="jd")
