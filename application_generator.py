@@ -8,7 +8,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime
 from langchain_core.output_parsers import JsonOutputParser
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 from markitdown import MarkItDown
 from pathlib import Path
 from typing import Optional
@@ -362,7 +362,10 @@ class JobApplicationBuilder:
             Scores each point in the description list of each item in a section.
             Modifies the items in-place by adding a 'scored_description' field.
             """
-            from metrics import sentence_transformer_similarity
+            try:
+                from metrics import sentence_transformer_similarity
+            except ImportError:
+                raise ImportError("sentence-transformers is required for scoring functionality. Install it with: uv add sentence-transformers")
 
             for item in items:
                 points = []
@@ -387,7 +390,10 @@ class JobApplicationBuilder:
             logger.info("Description point scoring disabled, skipping")
             return build
         
-        from metrics import sentence_transformer_similarity
+        try:
+            from metrics import sentence_transformer_similarity
+        except ImportError:
+            raise ImportError("sentence-transformers is required for scoring functionality. Install it with: uv add sentence-transformers")
 
         try:
             job_text = " ".join([

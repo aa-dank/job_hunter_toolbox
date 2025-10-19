@@ -3,16 +3,26 @@
 This toolbox automates resume and cover letter generation using LaTeX, Python, and LLM services to streamline the job application process.
 
 ## Dependencies and Setup
-1. Ensure you have a modern Python version installed (e.g., Python 3.9+).
-2. Install LaTeX tools (TeX Live, MikTeX, etc.) with at least `pdflatex`.  
+1. Ensure you have a modern Python version installed (Python 3.13+).
+2. Install [uv](https://docs.astral.sh/uv/) for Python package management.
+3. Install LaTeX tools (TeX Live, MikTeX, etc.) with at least `pdflatex`.  
    • Optionally install `xelatex` for advanced formatting.  
-3. Configure API credentials (e.g., OpenAI keys) for LLMProvider classes.
+4. Configure API credentials (e.g., OpenAI keys) for LLMProvider classes.
+
+## Installation
+```bash
+# Install dependencies
+uv sync
+
+# Activate the virtual environment (optional - uv run handles this automatically)
+source .venv/bin/activate
+```
 
 ## Usage
 • Configure an LLMProvider with your API credentials.
 • Run the full application via:
   
-  python main.py
+  uv run python main.py
 
 • The application flow will:
   - Extract job and user data.

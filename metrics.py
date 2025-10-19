@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from sklearn.metrics import pairwise
-from sentence_transformers import SentenceTransformer
+# from sentence_transformers import SentenceTransformer  # Imported conditionally when needed
 from typing import Any, Dict, Optional, Union, List
 
 class ScoringMethodType(Enum):
@@ -115,8 +115,11 @@ class SentenceTransformerStrategy(ScoringStrategy):
     def model(self):
         """Lazy loading of the SentenceTransformer model."""
         if self._model is None:
-            from sentence_transformers import SentenceTransformer
-            self._model = SentenceTransformer(self.config["model_name"])
+            try:
+                from sentence_transformers import SentenceTransformer
+                self._model = SentenceTransformer(self.config["model_name"])
+            except ImportError:
+                raise ImportError("sentence-transformers is required for SentenceTransformerStrategy. Install it with: uv add sentence-transformers")
         return self._model
     
     def calculate_score(self, reference_text: str, candidate_text: str, **kwargs) -> float:
@@ -339,18 +342,23 @@ def normalize_text(text: str) -> list:
     
     return words
 
-def sentence_transformer_similarity(document1: str, document2: str, model: SentenceTransformer = None) -> float:
+def sentence_transformer_similarity(document1: str, document2: str, model = None) -> float:
     """Calculate the cosine similarity between two documents using Sentence Transformers.
 
     Args:
         document1 (str): The first document.
         document2 (str): The second document.
+        model: SentenceTransformer model instance, if None will create default model
 
     Returns:
         float: The cosine similarity between the two documents.
     """
     if model is None:
-        model = SentenceTransformer('all-MiniLM-L6-v2')
+        try:
+            from sentence_transformers import SentenceTransformer
+            model = SentenceTransformer('all-MiniLM-L6-v2')
+        except ImportError:
+            raise ImportError("sentence-transformers is required for this function. Install it with: uv add sentence-transformers")
 
     # Encode the documents
     embeddings = model.encode([document1, document2])
