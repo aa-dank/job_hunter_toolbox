@@ -2,7 +2,7 @@
 name = "job-hunter-toolbox"
 version = "0.1.0"
 description = "Automates resume and cover letter generation using LaTeX, Python, and LLM services to streamline the job application process."
-requires-python = ">=3.13"
+requires-python = ">=3.13,<3.14"
 dependencies = [
     "aiohttp>=3.13.1",
     "annotated-types>=0.7.0",
@@ -38,4 +38,16 @@ dependencies = [
     "pypdf2>=3.0.1",
     "pyyaml>=6.0.3",
     "scikit-learn>=1.7.2",
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "sentence-transformers>=2.0.0",
 ]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+torchvision = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
