@@ -21,8 +21,7 @@ def main():
         api_key=OPENAI_KEY,
         model="gpt-4o",
         system_prompt=RESUME_WRITER_PERSONA,
-        max_output_tokens=None,
-        temperature=0.7
+        max_output_tokens=None
     )
 
     generator = JobApplicationBuilder(

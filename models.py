@@ -65,7 +65,7 @@ class ChatGPT(LLMProvider):
     LLMProvider implementation using OpenAI's ChatCompletion API.
     Automatically retries without custom temperature if unsupported by the model.
     """
-    def __init__(self, api_key, model, system_prompt, max_output_tokens=None, temperature=0.7):
+    def __init__(self, api_key, model, system_prompt, max_output_tokens=None, temperature=1):
         super().__init__(api_key, model, system_prompt, max_output_tokens, temperature)
         self.embedding_model = "text-embedding-ada-002"
         if self.system_prompt.strip():
