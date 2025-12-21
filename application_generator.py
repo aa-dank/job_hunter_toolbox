@@ -18,6 +18,7 @@ from generation_schemas import Achievements, Certifications, Educations, Experie
 from logger import setup_logger
 from metrics import ScoringStrategy
 from models import LLMProvider
+from parsers import load_doc_text, UnsupportedFileFormatException
 from prompts.cover_letter_prompts import COVER_LETTER_GENERATOR
 from prompts.extraction_prompts import RESUME_DETAILS_EXTRACTOR, JOB_DETAILS_EXTRACTOR
 from prompts.resume_section_prompts import EXPERIENCE, SKILLS, PROJECTS, EDUCATIONS, CERTIFICATIONS, ACHIEVEMENTS, RESUME_WRITER_PERSONA
@@ -39,9 +40,6 @@ resume_section_prompt_map = {
     "achievements": {"prompt":ACHIEVEMENTS, "schema": Achievements},
 }
 
-class UnsupportedFileFormatException(Exception):
-    """Custom exception for unsupported file formats."""
-    pass
 
 def extract_pdf_text(pdf_path: str): #kinda deprecated
     """ Extracts text from a PDF file.
@@ -216,30 +214,8 @@ class JobApplicationBuilder:
             if build.parsed_job_details:
                 return build
             
-            job_content_path = build.job_content_path
-            job_content_path = Path(job_content_path)
-            extension = job_content_path.suffix[1:]
-            if (extension == 'json'):
-                with open(job_content_path, 'r') as file:
-                    job_content_str = json.load(file)
-            elif (extension == 'md'):
-                with open(job_content_path, 'r') as file:
-                    job_content_str = file.read()
-            else:
-                try:
-                    # use the markitdown library to convert the file to markdown
-                    convertion_result = self.md_converter.convert(str(job_content_path))
-                    job_content_str = convertion_result.text_content
-                    if not job_content_str:
-                        raise Exception("Empty Markdown Convertion")
-                except Exception as e:
-                    
-                    # if markitdown._markitdown.UnsupportedFormatException...
-                    if e.__class__.__name__ == "UnsupportedFormatException":
-                        raise UnsupportedFileFormatException(f"Unsupported file format: {extension}")
-                    else:
-                        raise e
-
+            # Use the new load_doc_text helper
+            job_content_str = load_doc_text(build.job_content_path, md_converter=self.md_converter)
 
             json_parser = JsonOutputParser(pydantic_object=JobDetails)
             
@@ -322,7 +298,7 @@ class JobApplicationBuilder:
             extension = os.path.splitext(build.user_details_content_path)[1]
 
             if extension == ".json":
-                # user_dat from json file
+                # user_data from json file
                 with open(build.user_details_content_path, 'r') as file:
                     user_data = json.load(file)
             elif extension == ".md":
@@ -330,18 +306,9 @@ class JobApplicationBuilder:
                 with open(build.user_details_content_path, 'r') as file:
                     user_data = file.read()
             else:
-                try:
-                    # use the markitdown library to convert the file to markdown
-                    user_file_convertion = self.md_converter.convert(build.user_details_content_path)
-                    user_info_md = user_file_convertion.text_content
-                    if not user_info_md:
-                        raise Exception("Empty Markdown Convertion")
-                    user_data = self._resume_to_json(user_info_md)
-                except Exception as e:
-                    if e.__class__.__name__ == "UnsupportedFormatException":
-                        raise UnsupportedFileFormatException(f"Unsupported file format: {extension}")
-                    else:
-                        raise e
+                # Use load_doc_text and convert to JSON via LLM
+                user_info_text = load_doc_text(build.user_details_content_path, md_converter=self.md_converter)
+                user_data = self._resume_to_json(user_info_text)
             
             build.parsed_user_data = user_data
             logger.info("User data extracted successfully.")

@@ -149,7 +149,191 @@ class SentenceTransformerStrategy(ScoringStrategy):
         
         # Clamp each into [score_range]
         return [float(max(self.score_range[0], min(s, self.score_range[1]))) for s in sims]
+
+
+class TfidfCosineStrategy(ScoringStrategy):
+    """Scoring strategy using TF-IDF vectors and cosine similarity."""
+    
+    def __init__(self,
+                 name: str = "TF-IDF Cosine Similarity",
+                 description: str = "Uses TF-IDF vectors for lexical similarity"):
         
+        super().__init__(
+            name=name,
+            description=description,
+            method_type=ScoringMethodType.LEXICAL,
+            llm_usage_instructions=(
+                "Measures lexical similarity using TF-IDF vectors and cosine similarity. "
+                "Each point is tagged with [relevance: X.XX] within [0.0,1.0], where higher values mean greater relevance. "
+                "Use these scores to prioritize the most relevant items in the resume and omit the score notation in your final output."
+            )
+        )
+        self._vectorizer = None
+    
+    def calculate_score(self, reference_text: str, candidate_text: str, **kwargs) -> float:
+        """Calculate lexical similarity using TF-IDF cosine similarity."""
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        from sklearn.metrics.pairwise import cosine_similarity as cosine_sim
+        
+        # Create a new vectorizer for each pair
+        vectorizer = TfidfVectorizer()
+        vectors = vectorizer.fit_transform([reference_text, candidate_text])
+        
+        sim = cosine_sim(vectors[0], vectors[1])[0][0]
+        
+        # Clamp into [score_range]
+        score = float(max(self.score_range[0], min(sim, self.score_range[1])))
+        return score
+    
+    def batch_score(self, reference_text: str, candidate_texts: list[str], **kwargs) -> list[float]:
+        """Efficient batch scoring for multiple candidates."""
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        from sklearn.metrics.pairwise import cosine_similarity as cosine_sim
+        
+        if not candidate_texts:
+            return []
+        
+        # Vectorize all at once
+        vectorizer = TfidfVectorizer()
+        all_texts = [reference_text] + candidate_texts
+        vectors = vectorizer.fit_transform(all_texts)
+        
+        # Calculate similarity of reference (index 0) with all candidates
+        ref_vec = vectors[0]
+        cand_vecs = vectors[1:]
+        sims = cosine_sim(ref_vec, cand_vecs)[0]
+        
+        # Clamp each into [score_range]
+        return [float(max(self.score_range[0], min(s, self.score_range[1]))) for s in sims]
+
+
+class KeywordCoverageStrategy(ScoringStrategy):
+    """Scoring strategy based on keyword matching."""
+    
+    def __init__(self,
+                 name: str = "Keyword Coverage",
+                 description: str = "Measures coverage of important keywords"):
+        
+        super().__init__(
+            name=name,
+            description=description,
+            method_type=ScoringMethodType.STATISTICAL,
+            llm_usage_instructions=(
+                "Measures keyword coverage as the proportion of important keywords present. "
+                "Each point is tagged with [relevance: X.XX] within [0.0,1.0], where higher values mean better keyword coverage. "
+                "Use these scores to prioritize the most relevant items in the resume and omit the score notation in your final output."
+            )
+        )
+    
+    def calculate_score(self, reference_text: str, candidate_text: str, **kwargs) -> float:
+        """
+        Calculate keyword coverage score.
+        
+        Args:
+            reference_text: Text containing keywords (e.g., job description)
+            candidate_text: Text to check for keywords (e.g., resume)
+            **kwargs: Can include 'keywords' list to use specific keywords
+                     instead of extracting from reference_text
+        
+        Returns:
+            float: Proportion of keywords found in candidate_text [0.0, 1.0]
+        """
+        # Use provided keywords or extract from reference
+        keywords = kwargs.get('keywords')
+        if keywords is None:
+            keywords = self._extract_keywords(reference_text)
+        
+        if not keywords:
+            return 0.0
+        
+        # Normalize candidate text
+        candidate_lower = candidate_text.lower()
+        
+        # Count matches
+        matched = sum(1 for kw in keywords if kw.lower() in candidate_lower)
+        
+        # Calculate coverage
+        coverage = matched / len(keywords)
+        
+        # Clamp into [score_range]
+        score = float(max(self.score_range[0], min(coverage, self.score_range[1])))
+        return score
+    
+    def _extract_keywords(self, text: str) -> list[str]:
+        """
+        Extract important keywords from text.
+        Simple implementation: extract words, filter stopwords, take unique.
+        """
+        # Use normalize_text if available, otherwise simple word extraction
+        try:
+            words = normalize_text(text)
+            # Take unique words
+            return list(set(words))
+        except:
+            # Fallback: simple word extraction
+            words = re.findall(r'\b[a-zA-Z]{3,}\b', text.lower())
+            return list(set(words))
+    
+    def get_matched_keywords(self, reference_text: str, candidate_text: str, **kwargs) -> tuple[list[str], list[str]]:
+        """
+        Get lists of matched and missing keywords.
+        
+        Returns:
+            tuple: (matched_keywords, missing_keywords)
+        """
+        keywords = kwargs.get('keywords')
+        if keywords is None:
+            keywords = self._extract_keywords(reference_text)
+        
+        if not keywords:
+            return [], []
+        
+        candidate_lower = candidate_text.lower()
+        
+        matched = [kw for kw in keywords if kw.lower() in candidate_lower]
+        missing = [kw for kw in keywords if kw.lower() not in candidate_lower]
+        
+        return matched, missing
+        
+
+def max_chunk_similarity(job_chunks: list[str], resume_chunks: list[str], scorer: ScoringStrategy) -> tuple[float, list[tuple[str, str, float]]]:
+    """
+    Calculate maximum chunk similarity between job and resume chunks.
+    
+    For each job chunk, finds the best matching resume chunk and returns
+    the overall max similarity score plus evidence tuples.
+    
+    Args:
+        job_chunks: List of job description chunks
+        resume_chunks: List of resume chunks
+        scorer: Scoring strategy to use for similarity calculation
+        
+    Returns:
+        tuple: (max_score, evidence_list)
+            - max_score: Maximum similarity score found
+            - evidence_list: List of (job_chunk, best_resume_chunk, score) tuples
+    """
+    if not job_chunks or not resume_chunks:
+        return 0.0, []
+    
+    evidence = []
+    max_score = 0.0
+    
+    for job_chunk in job_chunks:
+        # Score this job chunk against all resume chunks
+        scores = scorer.batch_score(job_chunk, resume_chunks)
+        
+        # Find best match
+        if scores:
+            best_idx = max(range(len(scores)), key=lambda i: scores[i])
+            best_score = scores[best_idx]
+            best_resume_chunk = resume_chunks[best_idx]
+            
+            evidence.append((job_chunk, best_resume_chunk, best_score))
+            max_score = max(max_score, best_score)
+    
+    return max_score, evidence
+
 
 def remove_urls(list_of_strings):
     """Removes strings containing URLs from a list using regular expressions."""
