@@ -21,7 +21,11 @@ from models import LLMProvider
 from prompts.cover_letter_prompts import COVER_LETTER_GENERATOR
 from prompts.extraction_prompts import RESUME_DETAILS_EXTRACTOR, JOB_DETAILS_EXTRACTOR
 from prompts.resume_section_prompts import EXPERIENCE, SKILLS, PROJECTS, EDUCATIONS, CERTIFICATIONS, ACHIEVEMENTS, RESUME_WRITER_PERSONA
-from utils import LatexToolBox, text_to_pdf
+from latex_toolbox import (
+    escape_for_latex,
+    tex_resume_from_jinja_template,
+)
+from utils import text_to_pdf
 
 # Initialize logger
 logger = setup_logger(name="ApplicationGenerator", log_file="application_generator.log")
@@ -613,7 +617,7 @@ class JobApplicationBuilder:
                 loader=jinja2.FileSystemLoader(templates_path),
             )
 
-            escaped_resume_dict = LatexToolBox.escape_for_latex(build.resume_details_dict)
+            escaped_resume_dict = escape_for_latex(build.resume_details_dict)
 
             flattened_resume = {
                 'personal': escaped_resume_dict.get('personal', {}),
@@ -634,10 +638,11 @@ class JobApplicationBuilder:
                 flattened_resume['certifications'] = escaped_resume_dict['certifications'].get('certifications', [])
 
 
-
-            resume_latex = LatexToolBox.tex_resume_from_jinja_template(jinja_env=latex_jinja_env,
-                                                                       json_resume=flattened_resume,
-                                                                       tex_jinja_template=build.resume_tex_template_path)
+            resume_latex = tex_resume_from_jinja_template(
+                jinja_env=latex_jinja_env,
+                json_resume=flattened_resume,
+                tex_jinja_template=build.resume_tex_template_path,
+            )
 
             
             # Save the resume in a tex file

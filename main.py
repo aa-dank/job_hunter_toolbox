@@ -4,7 +4,13 @@ from creds import OPENAI_KEY
 from application_generator import JobApplicationBuild, JobApplicationBuilder
 from models import ChatGPT
 from prompts.resume_section_prompts import RESUME_WRITER_PERSONA
-from utils import LatexToolBox, text_to_pdf
+from latex_toolbox import (
+    check_fonts_installed,
+    cleanup_latex_files,
+    compile_resume_latex_to_pdf,
+    extract_tex_font_dependencies,
+)
+from utils import text_to_pdf
 from logger import setup_logger
 
 # Initialize logger
@@ -56,8 +62,8 @@ def main():
         logger.info('Edit the resume latex and cover letter text files as needed. Hit enter when you are ready to turn them into pdf files.')
         input()
 
-        resume_tex_fonts = LatexToolBox.extract_tex_font_dependencies(build.resume_tex_path)
-        font_statuses = LatexToolBox.check_fonts_installed(resume_tex_fonts)
+        resume_tex_fonts = extract_tex_font_dependencies(build.resume_tex_path)
+        font_statuses = check_fonts_installed(resume_tex_fonts)
         if not all([v for v in font_statuses.values()]):
             for k, v in font_statuses.items():
                 if not v:
@@ -65,7 +71,7 @@ def main():
 
         logger.info("Compiling LaTeX to PDF...")
         output_dir = os.path.dirname(os.path.abspath(build.resume_tex_path))
-        success = LatexToolBox.compile_resume_latex_to_pdf(
+        success = compile_resume_latex_to_pdf(
             tex_filepath=build.resume_tex_path, 
             cls_filepath=build.resume_cls_path,
             output_destination_path=output_dir
@@ -73,7 +79,7 @@ def main():
         if success:
             # Remove auxiliary files using resume base name (without extension)
             base_name = os.path.splitext(os.path.basename(build.resume_tex_path))[0]
-            LatexToolBox.cleanup_latex_files(output_dir, base_name)
+            cleanup_latex_files(output_dir, base_name)
             logger.info(f"Resume PDF is saved at {build.resume_tex_path.replace('.tex','.pdf')}")
         else:
             logger.error("LaTeX compilation failed.")
