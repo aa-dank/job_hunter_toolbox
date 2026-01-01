@@ -1,5 +1,37 @@
 import os
+import re
+from datetime import datetime
 from fpdf import FPDF
+
+
+def build_application_destination(
+    company_name: str,
+    job_title: str,
+    output_destination: str = "output_files",
+    timestamp: str | None = None,
+) -> str:
+    """Create the standard `<output>/<Company>/<JobTitle>_<timestamp>` directory."""
+
+    def _clean(value: str) -> str:
+        cleaned = re.sub(r"[^a-zA-Z0-9]+", "", value.title().replace(" ", "").strip())
+        if not cleaned:
+            raise ValueError("Value must contain at least one alphanumeric character after cleaning.")
+        return cleaned
+
+    if not company_name or not job_title:
+        raise ValueError("company_name and job_title are required to build an application destination.")
+
+    normalized_company = _clean(company_name)
+    normalized_job = _clean(job_title)[:15]
+    run_timestamp = timestamp or datetime.now().strftime(r"%Y%m%d%H%M%S")
+
+    destination_dir = os.path.join(
+        output_destination,
+        normalized_company,
+        f"{normalized_job}_{run_timestamp}",
+    )
+    os.makedirs(destination_dir, exist_ok=True)
+    return destination_dir
 
 
 def text_to_pdf(text: str, destination_path: str):

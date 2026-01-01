@@ -7,7 +7,7 @@ import subprocess
 from matplotlib.font_manager import FontManager
 from typing import Union, Any, Dict, List, Set, Tuple
 
-
+# Type alias for latex data structures
 LatexData = Union[str, List['LatexData'], Dict[Any, 'LatexData']]
 
 

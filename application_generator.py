@@ -26,7 +26,7 @@ from latex_toolbox import (
     escape_for_latex,
     tex_resume_from_jinja_template,
 )
-from utils import text_to_pdf
+from utils import text_to_pdf, build_application_destination
 
 # Initialize logger
 logger = setup_logger(name="ApplicationGenerator", log_file="application_generator.log")
@@ -143,11 +143,6 @@ class JobApplicationBuild:
             str: The full file path for the specified file type. If a file with the same name
             already exists, appends an incrementing counter to the filename to ensure uniqueness.
         """
-        def clean_string(text: str):
-            text = text.title().replace(" ", "").strip()
-            text = re.sub(r"[^a-zA-Z0-9]+", "", text)
-            return text
-
         if not self.org or not self.job_title:
             logger.warning(
                 "Cannot build job document path without both organization and job title; org=%s, job_title=%s.",
@@ -156,12 +151,12 @@ class JobApplicationBuild:
             )
             raise ValueError("Organization and job title must be set before generating job document paths.")
 
-        company_name = clean_string(self.org)
-        job_title = clean_string(self.job_title)[:15]
-        timestamp = self.timestamp
-
-        doc_dir = os.path.join(self.output_destination, company_name, f"{job_title}_{timestamp}")
-        os.makedirs(doc_dir, exist_ok=True)
+        doc_dir = build_application_destination(
+            company_name=self.org,
+            job_title=self.job_title,
+            output_destination=self.output_destination,
+            timestamp=self.timestamp,
+        )
 
 
         if not file_type or (file_type not in ["jd", "resume_json", "resume", "cover_letter"]):

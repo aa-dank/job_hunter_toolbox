@@ -10,7 +10,6 @@ from langchain_core.output_parsers import JsonOutputParser
 from google.generativeai.types.generation_types import GenerationConfig
 
 
-
 def parse_json_markdown(json_string: str) -> dict:
     """
     Parse JSON string from markdown format
@@ -58,7 +57,6 @@ class LLMProvider(ABC):
     @abstractmethod
     def get_embedding(self, text, model=None, task_type="retrieval_document"):
         pass
-
 
 class ChatGPT(LLMProvider):
     """
