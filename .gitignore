@@ -145,3 +145,4 @@ templates/master.tex
 *.out
 *.aux
 *creds.py
+.cache_ranker/
