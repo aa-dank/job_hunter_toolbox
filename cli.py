@@ -81,7 +81,7 @@ def compile_resume(tex_file, cls_file, output_dir, engine, cleanup, verbose):
     """
     # Configure logging
     log_level = logging.DEBUG if verbose else logging.INFO
-    logger = setup_logger("cli", log_level=log_level)
+    logger = setup_logger("cli", level=log_level)
     
     # Resolve paths
     tex_file = tex_file.resolve()
