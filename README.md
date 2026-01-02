@@ -28,7 +28,44 @@ source .venv/bin/activate
 
 ## Usage
 
-### Resume Generation
+### Command Line Interface (CLI)
+
+The project includes a Click-based CLI for common tasks. The `job-hunter` command is available via `uv run`:
+
+```bash
+# View available commands
+uv run job-hunter --help
+
+# Compile a LaTeX resume to PDF
+uv run job-hunter compile-resume path/to/resume.tex
+
+# Compile with custom class file and output directory
+uv run job-hunter compile-resume resume.tex -c custom.cls -o output/
+
+# Use specific LaTeX engine
+uv run job-hunter compile-resume resume.tex -e xelatex
+
+# Disable auxiliary file cleanup
+uv run job-hunter compile-resume resume.tex --no-cleanup
+
+# Enable verbose logging
+uv run job-hunter compile-resume resume.tex -v
+```
+
+Alternatively, activate the virtual environment to use `job-hunter` directly:
+```bash
+source .venv/bin/activate
+job-hunter compile-resume resume.tex
+```
+
+The `compile-resume` command:
+- Auto-detects the required `.cls` file from the `templates/` directory based on your `\documentclass` declaration
+- Auto-selects the LaTeX engine (xelatex if using fontspec, otherwise pdflatex)
+- Compiles the resume twice to resolve references
+- Cleans up auxiliary files (.aux, .log, .out, etc.) by default
+- Outputs the compiled PDF to the same directory as the input file (or a custom directory with `-o`)
+
+### Resume Generation (Python)
 • Configure an LLMProvider with your API credentials.
 • Run the full application via:
   

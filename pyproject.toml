@@ -10,6 +10,7 @@ dependencies = [
     "certifi>=2025.10.5",
     "cffi>=2.0.0",
     "charset-normalizer>=3.4.4",
+    "click>=8.1.0",
     "cryptography>=46.0.3",
     "decorator>=5.2.1",
     "fpdf2>=2.8.4",
@@ -42,6 +43,19 @@ dependencies = [
     "torchvision>=0.15.0",
     "sentence-transformers>=2.0.0",
 ]
+
+[project.scripts]
+job-hunter = "cli:cli"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["application_generator", "chunking", "cli", "generation_schemas", "job_extract", "latex_toolbox", "logger", "main", "metrics", "models", "parsers", "ranking", "ranking_models", "utils"]
+
+[tool.uv]
+package = true
 
 [tool.uv.sources]
 torch = { index = "pytorch-cpu" }

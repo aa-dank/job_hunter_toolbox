@@ -146,3 +146,7 @@ templates/master.tex
 *.aux
 *creds.py
 .cache_ranker/
+
+# coiding agent files
+agent.md
+WARP.md
